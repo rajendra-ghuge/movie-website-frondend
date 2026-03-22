@@ -8,9 +8,14 @@ import Navbar from '../components/Navbar';
 const WatchPage = () => {
     const { type, id, season: sParam, episode: eParam } = useParams();
     const navigate = useNavigate();
-    const [selectedServer, setSelectedServer] = useState(3);
+    const [selectedServer, setSelectedServer] = useState(4);
     const [selectedSeason, setSelectedSeason] = useState(parseInt(sParam) || 1);
     const [selectedEpisode, setSelectedEpisode] = useState(parseInt(eParam) || (type === 'tv' ? 1 : null));
+
+    // Scroll to top on mount or when id/type changes
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, [id, type]);
 
     // Fetch movie/tv details for title and cast
     const { data: detail, isLoading: isDetailLoading } = useQuery({
@@ -62,12 +67,12 @@ const WatchPage = () => {
     };
 
     const servers = [
-        { id: 3, name: 'Xayah' },
         { id: 4, name: 'Ekko' },
         { id: 1, name: 'Rakan' },
         { id: 2, name: 'Bard' },
         { id: 5, name: 'Naafiri' },
-        { id: 6, name: 'Ryze' }
+        { id: 6, name: 'Ryze' },
+        { id: 3, name: 'Xayah' }
     ];
 
     // Fetch Recommendations
@@ -225,9 +230,11 @@ const WatchPage = () => {
 
                     <div className="watch-similar">
                         <h3>Recommended for You</h3>
-                        <div className="similar-list">
+                        <div className="similar-list" style={{ minHeight: '300px' }}>
                             {isRecLoading ? (
-                                <Loader2 className="animate-spin" size={24} />
+                                <div className="loader-container-small">
+                                    <Loader2 className="animate-spin" size={24} color="#fdd835" />
+                                </div>
                             ) : (
                                 recommendations?.map((movie) => (
                                     <Link 

@@ -319,6 +319,7 @@ body {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
+  max-width: 100%;
 }
 
 @media (min-width: 640px) { .movie-grid { grid-template-columns: repeat(3, 1fr); } }
@@ -434,7 +435,9 @@ body {
   color: var(--text-gray);
   margin-bottom: 1.5rem;
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
+  line-height: 1.4;
 }
 
 .breadcrumbs a {
@@ -573,7 +576,9 @@ body {
 
 .meta-row {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
+  word-break: break-word;
 }
 
 .meta-label {
@@ -1013,16 +1018,21 @@ body {
   }
 
   .watch-layout {
-    padding: 1rem;
+    padding: 0.75rem;
+    gap: 1rem;
+    width: 100%;
+    margin: 0;
   }
 
   .watch-title {
     font-size: 1.25rem;
+    word-wrap: break-word;
   }
 
   .watch-right {
     width: 100%;
     padding: 1rem;
+    box-sizing: border-box;
   }
 }
 
