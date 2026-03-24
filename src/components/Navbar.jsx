@@ -38,9 +38,15 @@ const Navbar = () => {
             dropdown: [
                 { name: 'All Bollywood', path: '/?lang=hi&cat=hi' },
                 { name: 'Action', path: '/?lang=hi&genre=28&cat=hi' },
+                { name: 'Adventure', path: '/?lang=hi&genre=12&cat=hi' },
+                { name: 'Animation', path: '/?lang=hi&genre=16&cat=hi' },
                 { name: 'Comedy', path: '/?lang=hi&genre=35&cat=hi' },
+                { name: 'Crime', path: '/?lang=hi&genre=80&cat=hi' },
                 { name: 'Drama', path: '/?lang=hi&genre=18&cat=hi' },
-                { name: 'Romance', path: '/?lang=hi&genre=10749&cat=hi' }
+                { name: 'Horror', path: '/?lang=hi&genre=27&cat=hi' },
+                { name: 'Romance', path: '/?lang=hi&genre=10749&cat=hi' },
+                { name: 'Sci-Fi', path: '/?lang=hi&genre=878&cat=hi' },
+                { name: 'Thriller', path: '/?lang=hi&genre=53&cat=hi' }
             ]
         },
         { 
@@ -49,8 +55,15 @@ const Navbar = () => {
             dropdown: [
                 { name: 'All Hollywood', path: '/?lang=en&cat=en' },
                 { name: 'Action', path: '/?lang=en&genre=28&cat=en' },
+                { name: 'Adventure', path: '/?lang=en&genre=12&cat=en' },
+                { name: 'Animation', path: '/?lang=en&genre=16&cat=en' },
+                { name: 'Comedy', path: '/?lang=en&genre=35&cat=en' },
+                { name: 'Crime', path: '/?lang=en&genre=80&cat=en' },
+                { name: 'Drama', path: '/?lang=en&genre=18&cat=en' },
+                { name: 'Horror', path: '/?lang=en&genre=27&cat=en' },
+                { name: 'Romance', path: '/?lang=en&genre=10749&cat=en' },
                 { name: 'Sci-Fi', path: '/?lang=en&genre=878&cat=en' },
-                { name: 'Horror', path: '/?lang=en&genre=27&cat=en' }
+                { name: 'Thriller', path: '/?lang=en&genre=53&cat=en' }
             ]
         },
         { 

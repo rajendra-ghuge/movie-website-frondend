@@ -40,6 +40,16 @@ const WatchPage = () => {
         enabled: type === 'tv' && !!selectedSeason
     });
 
+    const slug = useMemo(() => {
+        if (!detail) return '';
+        const rawTitle = detail.title || detail.name || '';
+        return rawTitle.toLowerCase()
+            .replace(/&/g, 'and')
+            .replace(/[^a-z0-9\s-]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-');
+    }, [detail]);
+
     const getIframeSrc = () => {
         if (type === 'tv' && !selectedEpisode) return '';
 
@@ -49,8 +59,11 @@ const WatchPage = () => {
                 case 2: return `https://moviesapi.club/movie/${id}`;
                 case 3: return `https://vidsrc.me/embed/movie?tmdb=${id}`;
                 case 4: return `https://player.videasy.net/movie/${id}`;
-                case 5: return `https://vidsrc.su/embed/movie/${id}`;
                 case 6: return `https://vidlink.pro/movie/${id}?title=true&poster=true&autoplay=false`;
+                case 7: return `https://www.vidsrc.wtf/api/2/movie/?id=${id}-${slug}`;
+                case 8: return `https://www.vidking.net/embed/movie/${id}`;
+                case 9: return `https://player.smashy.stream/movie/${id}`;
+                case 10: return `https://vidsrc.wtf/api/3/movie/?id=${id}`;
                 default: return '';
             }
         } else {
@@ -59,20 +72,26 @@ const WatchPage = () => {
                 case 2: return `https://moviesapi.club/tv/${id}-${selectedSeason}-${selectedEpisode}`;
                 case 3: return `https://vidsrc.me/embed/tv?tmdb=${id}&season=${selectedSeason}&episode=${selectedEpisode}`;
                 case 4: return `https://player.videasy.net/tv/${id}/${selectedSeason}/${selectedEpisode}?nextEpisode=true&episodeSelector=true`;
-                case 5: return `https://vidsrc.su/embed/tv/${id}/${selectedSeason}/${selectedEpisode}`;
                 case 6: return `https://vidlink.pro/tv/${id}/${selectedSeason}/${selectedEpisode}?title=true&poster=true&autoplay=false&nextbutton=true`;
+                case 7: return `https://www.vidsrc.wtf/api/2/tv/?id=${id}&s=${selectedSeason}&e=${selectedEpisode}`;
+                case 8: return `https://www.vidking.net/embed/tv/${id}-${slug}/${selectedSeason}/${selectedEpisode}`;
+                case 9: return `https://player.smashy.stream/tv/${id}?s=${selectedSeason}&e=${selectedEpisode}`;
+                case 10: return `https://vidsrc.wtf/api/3/tv/?id=${id}&s=${selectedSeason}&e=${selectedEpisode}`;
                 default: return '';
             }
         }
     };
 
     const servers = [
-        { id: 4, name: 'Ekko' },
-        { id: 1, name: 'Rakan' },
-        { id: 2, name: 'Bard' },
-        { id: 5, name: 'Naafiri' },
-        { id: 6, name: 'Ryze' },
-        { id: 3, name: 'Xayah' }
+        { id: 4, label: 'S4' },
+        { id: 1, label: 'S1' },
+        { id: 2, label: 'S2' },
+        { id: 6, label: 'S6' },
+        { id: 3, label: 'S3' },
+        { id: 7, label: 'S7-hindi dubbed' },
+        { id: 8, label: 'S8' },
+        { id: 9, label: 'S9' },
+        { id: 10, label: 'S10' }
     ];
 
     // Fetch Recommendations
@@ -152,7 +171,7 @@ const WatchPage = () => {
                                         className={`server-btn ${selectedServer === server.id ? 'active' : ''}`}
                                         onClick={() => setSelectedServer(server.id)}
                                     >
-                                        S{server.id}
+                                        {server.label}
                                     </button>
                                 ))}
                             </div>

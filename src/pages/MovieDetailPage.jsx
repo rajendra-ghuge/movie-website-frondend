@@ -71,6 +71,16 @@ const MovieDetailPage = () => {
                         ))}
                     </div>
 
+                    <div className="detail-actions">
+                        <Link 
+                            to={`/watch/${type}/${id}`}
+                            className="btn-watch"
+                        >
+                            <Play size={20} fill="currentColor" />
+                            Watch Now
+                        </Link>
+                    </div>
+
                     <p className="detail-overview">{movie.overview}</p>
 
                     <div className="meta-info">
@@ -102,14 +112,6 @@ const MovieDetailPage = () => {
                             )}
                         </div>
                     </div>
-
-                    <Link 
-                        to={`/watch/${type}/${id}`}
-                        className="btn-watch"
-                    >
-                        <Play size={20} fill="currentColor" />
-                        Watch Now
-                    </Link>
 
                     <div className="trailer-section-container">
                         <h3 className="section-title">Official Trailer</h3>
