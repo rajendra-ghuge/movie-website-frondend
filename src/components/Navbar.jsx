@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, Moon, X, ChevronDown, Menu } from 'lucide-react';
+import { Search, Moon, X, ChevronDown, Menu, Dice6 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 const Navbar = () => {
@@ -102,8 +102,71 @@ const Navbar = () => {
                 { name: 'Gujarati', path: '/?lang=gu&cat=lang' },
                 { name: 'English', path: '/?lang=en&cat=lang' }
             ]
+        },
+        {
+            name: '', // No text, just icon
+            cat: 'dice',
+            icon: <Dice6 size={18} className="mr-1" title="Random" />, // Only icon
+            dropdown: [
+                { name: 'Indian (Random)', action: 'indian_dice' },
+                { name: 'Hollywood (Random)', action: 'hollywood_dice' }
+            ]
         }
     ];
+
+    const generateRandomDiceParams = (type) => {
+        const genres = [28, 12, 16, 35, 80, 18, 27, 10749, 878, 53];
+        // Weighted languages: Hindi is much more common than others
+        const indianLangs = ['hi', 'hi', 'hi', 'hi', 'mr', 'ta', 'te', 'ml', 'kn', 'bn', 'gu', 'pa'];
+        const sorts = ['popularity.desc', 'primary_release_date.desc', 'vote_average.desc'];
+        
+        const randomSort = sorts[Math.floor(Math.random() * sorts.length)];
+        
+        let lang = 'en';
+        let pageLimit = 20;
+        let genreCount = Math.random() > 0.6 ? 2 : 1;
+        let minRatingVal = (Math.random() * 2 + 5).toFixed(1); // 5.0 to 7.0
+
+        if (type === 'indian') {
+            lang = indianLangs[Math.floor(Math.random() * indianLangs.length)];
+            // Less content for regional languages, so reduce constraints
+            if (lang !== 'hi') {
+                pageLimit = 5;
+                genreCount = 1;
+                minRatingVal = 0; // Don't filter by rating for regional to ensure results
+            }
+        }
+
+        const selectedGenres = [];
+        for (let i = 0; i < genreCount; i++) {
+            const g = genres[Math.floor(Math.random() * genres.length)];
+            if (!selectedGenres.includes(g)) selectedGenres.push(g);
+        }
+
+        const randomPage = Math.floor(Math.random() * pageLimit) + 1;
+        
+        const params = new URLSearchParams();
+        params.set('cat', 'dice');
+        params.set('lang', lang);
+        params.set('genre', selectedGenres.join(','));
+        params.set('sort', randomSort);
+        params.set('page', randomPage);
+        if (minRatingVal > 0) params.set('min_rating', minRatingVal);
+        params.set('r', Math.random().toString(36).substring(7));
+
+        return params.toString();
+    };
+
+    const handleDiceClick = (action) => {
+        setIsMenuOpen(false); // Close mobile menu if open
+        if (action === 'indian_dice') {
+            const params = generateRandomDiceParams('indian');
+            navigate(`/?${params}`);
+        } else if (action === 'hollywood_dice') {
+            const params = generateRandomDiceParams('hollywood');
+            navigate(`/?${params}`);
+        }
+    };
 
     const handleSearchSubmit = (e) => {
         if (e.key === 'Enter' && searchQuery.trim()) {
@@ -141,7 +204,8 @@ const Navbar = () => {
                                 className={`nav-link ${currentCat === link.cat || (link.cat === 'home' && location.pathname === '/' && !location.search) ? 'active' : ''}`}
                                 onClick={(e) => link.dropdown && e.preventDefault()}
                             >
-                                {link.name}
+                                {link.icon && link.icon}
+                                {link.name && link.name}
                                 {link.dropdown && <ChevronDown size={14} className="ml-1" />}
                             </Link>
 
@@ -153,9 +217,15 @@ const Navbar = () => {
                                         ) : (
                                             <Link 
                                                 key={subItem.name} 
-                                                to={subItem.path} 
+                                                to={subItem.path || '#'} 
                                                 className="dropdown-item"
-                                                onClick={() => setActiveDropdown(null)}
+                                                onClick={(e) => {
+                                                    if (subItem.action) {
+                                                        e.preventDefault();
+                                                        handleDiceClick(subItem.action);
+                                                    }
+                                                    setActiveDropdown(null);
+                                                }}
                                             >
                                                 {subItem.name}
                                             </Link>
@@ -212,7 +282,7 @@ const Navbar = () => {
                                         className={`mobile-nav-link-main ${activeDropdown === link.name ? 'active' : ''}`}
                                         onClick={() => link.dropdown ? toggleMobileDropdown(link.name) : navigate(link.path)}
                                     >
-                                        <span>{link.name}</span>
+                                        <span>{link.icon}{link.name}</span>
                                         {link.dropdown && <ChevronDown size={16} className={activeDropdown === link.name ? 'rotate-180' : ''} />}
                                     </div>
                                     
@@ -221,8 +291,14 @@ const Navbar = () => {
                                             {link.dropdown.map(subItem => (
                                                 <Link 
                                                     key={subItem.name} 
-                                                    to={subItem.path} 
+                                                    to={subItem.path || '#'} 
                                                     className="mobile-dropdown-item"
+                                                    onClick={(e) => {
+                                                        if (subItem.action) {
+                                                            e.preventDefault();
+                                                            handleDiceClick(subItem.action);
+                                                        }
+                                                    }}
                                                 >
                                                     {subItem.name}
                                                 </Link>

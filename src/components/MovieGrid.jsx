@@ -65,10 +65,12 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
                         month: 'short',
                         day: '2-digit'
                     }) : 'Coming Soon';
+                    
+                    const mediaType = type || movie.media_type || (movie.title ? 'movie' : 'tv');
 
                     return (
                         <div 
-                            key={movie.id}
+                            key={`${mediaType}-${movie.id}`}
                             onClick={() => handleMovieClick(movie)}
                             className="movie-card"
                         >

@@ -22,6 +22,7 @@ const HomePage = () => {
     const cn = query.get('cn');
     const latest = query.get('latest');
     const year = query.get('y') || query.get('year');
+    const minRating = query.get('min_rating');
 
     const getTitle = () => {
         if (s) return `Search results for "${s}"`;
@@ -39,6 +40,7 @@ const HomePage = () => {
         if (cat === 'top') return 'Top Rated IMDb';
         if (cat === 'tv_hi') return 'Indian Web Series';
         if (cat === 'tv_en') return 'Hollywood Web Series';
+        if (cat === 'dice') return `Random (${lang === 'en' ? 'Hollywood' : 'Indian'})`;
         if (cat === 'lang') return 'Language Specific Content';
         if (type === 'tv') return 'Latest Web Series';
         if (type === 'movie' && !lang && !genre) return 'Bollywood Highlights';
@@ -51,6 +53,22 @@ const HomePage = () => {
         if (cast) return movieApi.getMoviesByCast(cast, pageParams);
 
         const today = new Date().toISOString().split('T')[0];
+        
+        // Handle Random Discovery
+        if (cat === 'dice') {
+            const diceParams = {
+                ...pageParams,
+                with_original_language: lang,
+                with_genres: genre,
+                sort_by: sort,
+                'vote_average.gte': minRating || 5,
+                'vote_count.gte': 5,
+                'primary_release_date.lte': today,
+                'first_air_date.lte': today,
+                include_adult: 'true'
+            };
+            return movieApi.discoverBoth(diceParams);
+        }
 
         if (latest) {
             const params = {
