@@ -18,15 +18,24 @@ const HomePage = () => {
     const s = query.get('s');
     const k = query.get('k');
     const kn = query.get('kn');
+    const cast = query.get('cast');
+    const cn = query.get('cn');
+    const latest = query.get('latest');
     const year = query.get('y') || query.get('year');
 
     const getTitle = () => {
         if (s) return `Search results for "${s}"`;
         if (k && kn) return `Keyword: ${kn}`;
+        if (cast && cn) return `Movies starring ${cn}`;
         if (cat === 'hi') return 'Bollywood Movies';
         if (cat === 'en') return 'Hollywood Movies';
         if (cat === '16') return 'Anime Series';
         if (cat === 'ott') return 'OTT Specials';
+        if (cat === 'latest') {
+            if (latest === 'ott') return 'Latest OTT Releases';
+            if (latest === 'theatrical') return 'Latest Theatrical Releases';
+            return 'Latest Releases';
+        }
         if (cat === 'top') return 'Top Rated IMDb';
         if (cat === 'tv_hi') return 'Indian Web Series';
         if (cat === 'tv_en') return 'Hollywood Web Series';
@@ -39,8 +48,30 @@ const HomePage = () => {
     const fetchUrlData = (pageParams = { page: 1 }) => {
         if (s) return movieApi.searchMulti(s, pageParams.page);
         if (k) return movieApi.getMoviesByKeyword(k, pageParams);
+        if (cast) return movieApi.getMoviesByCast(cast, pageParams);
 
         const today = new Date().toISOString().split('T')[0];
+
+        if (latest) {
+            const params = {
+                'primary_release_date.lte': today,
+                'first_air_date.lte': today,
+                'with_origin_country': 'IN',
+                'include_adult': 'true',
+                ...pageParams
+            };
+
+            if (latest === 'ott') params.with_release_type = 4;
+            else if (latest === 'theatrical') params.with_release_type = 3;
+            else if (latest === 'all') params.with_release_type = '3|4';
+
+            // For combined discovery, we'll use a sort that works for both or let backend handle
+            // However, the user specifically asked for primary_release_date.desc in the example
+            params.sort_by = 'primary_release_date.desc';
+            
+            return movieApi.discoverBoth(params);
+        }
+
         const params = {
             sort_by: type === 'tv' && sort === 'popularity.desc' ? 'first_air_date.desc' : sort,
             ...pageParams
@@ -69,6 +100,16 @@ const HomePage = () => {
 
         if (lang) params.with_original_language = lang;
         if (genre) params.with_genres = genre;
+        
+        // Handle specific categories
+        if (cat === 'hi') params.with_original_language = 'hi';
+        if (cat === 'en') params.with_original_language = 'en';
+        if (cat === '16') params.with_genres = '16';
+        if (cat === 'top') {
+            params.sort_by = 'vote_average.desc';
+            params['vote_count.gte'] = 100;
+        }
+
         if (year) {
             if (type === 'movie') params.primary_release_year = year;
             else params.first_air_date_year = year;
@@ -78,12 +119,27 @@ const HomePage = () => {
             params.watch_region = 'IN';
         }
 
-        // Handle specific type requests (Movies or Web Series menus)
-        if (cat === 'movie' || type === 'movie' || cat === 'tv' || type === 'tv' || cat === 'tv_hi' || cat === 'tv_en') {
-            return type === 'movie' ? movieApi.discoverMovies(params) : movieApi.discoverTv(params);
+        // Handle Web Series Categories
+        if (cat === 'tv_hi') {
+            params.with_original_language = 'hi';
+            return movieApi.discoverTv(params);
+        }
+        if (cat === 'tv_en') {
+            params.with_original_language = 'en';
+            return movieApi.discoverTv(params);
         }
 
-        // For Home, Bollywood, Hollywood, OTT - Show BOTH
+        // Handle specific type requests (Movies or Web Series menus)
+        // If cat is 'hi' or 'en', respect the 'type' (default movie)
+        const isTvRequest = type === 'tv' || cat?.startsWith('tv');
+        if (isTvRequest) return movieApi.discoverTv(params);
+        
+        // Default to discoverMovies for specified categories
+        if (cat === 'hi' || cat === 'en' || cat === 'movie' || type === 'movie' || cat === 'top' || cat === '16') {
+            return movieApi.discoverMovies(params);
+        }
+
+        // For Home/Latest - Show BOTH
         // Pass both date limits for combined discovery
         params['primary_release_date.lte'] = today;
         params['first_air_date.lte'] = today;
@@ -104,6 +160,7 @@ const HomePage = () => {
                     key={location.search}
                     fetchUrl={fetchUrlData}
                     searchQuery={s}
+                    locationSearch={location.search}
                 />
 
                 <footer className="footer" style={{ marginTop: '4rem', opacity: 0.5, fontSize: '0.8rem', textAlign: 'center' }}>

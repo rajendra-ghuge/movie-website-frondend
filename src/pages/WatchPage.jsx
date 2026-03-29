@@ -21,7 +21,7 @@ const WatchPage = () => {
     const { data: detail, isLoading: isDetailLoading } = useQuery({
         queryKey: ['detail', type, id],
         queryFn: async () => {
-            const params = { append_to_response: 'credits' };
+            const params = { append_to_response: 'credits,external_ids' };
             const res = type === 'movie' 
                 ? await movieApi.getMovie(id, params) 
                 : await movieApi.getTvDetail(id, params);
@@ -50,11 +50,14 @@ const WatchPage = () => {
             .replace(/-+/g, '-');
     }, [detail]);
 
+    const imdbId = type === 'movie' ? detail?.imdb_id : detail?.external_ids?.imdb_id;
+
     const getIframeSrc = () => {
         if (type === 'tv' && !selectedEpisode) return '';
 
         if (type === 'movie') {
             switch (selectedServer) {
+                case 5: return imdbId ? `https://vidrock.net/movie/${imdbId}` : '';
                 case 1: return `https://vidsrc.cc/v3/embed/movie/${id}?autoPlay=false`;
                 case 2: return `https://moviesapi.club/movie/${id}`;
                 case 3: return `https://vidsrc.me/embed/movie?tmdb=${id}`;
@@ -68,6 +71,7 @@ const WatchPage = () => {
             }
         } else {
             switch (selectedServer) {
+                case 5: return imdbId ? `https://vidrock.net/tv/${imdbId}/${selectedSeason}/${selectedEpisode}` : '';
                 case 1: return `https://vidsrc.cc/v3/embed/tv/${id}/${selectedSeason}/${selectedEpisode}?autoPlay=false`;
                 case 2: return `https://moviesapi.club/tv/${id}-${selectedSeason}-${selectedEpisode}`;
                 case 3: return `https://vidsrc.me/embed/tv?tmdb=${id}&season=${selectedSeason}&episode=${selectedEpisode}`;
@@ -83,11 +87,12 @@ const WatchPage = () => {
     };
 
     const servers = [
-        { id: 4, label: 'S4' },
         { id: 1, label: 'S1' },
         { id: 2, label: 'S2' },
-        { id: 6, label: 'S6' },
         { id: 3, label: 'S3' },
+        { id: 4, label: 'S4' },
+        { id: 5, label: 'S5-indian' },
+        { id: 6, label: 'S6' },
         { id: 7, label: 'S7-hindi dubbed' },
         { id: 8, label: 'S8' },
         { id: 9, label: 'S9' },
@@ -150,6 +155,7 @@ const WatchPage = () => {
                             </div>
                         ) : (
                             <iframe
+                                key={`${selectedServer}-${id}-${selectedSeason}-${selectedEpisode}`}
                                 src={getIframeSrc()}
                                 title="Video Player"
                                 className="watch-iframe"

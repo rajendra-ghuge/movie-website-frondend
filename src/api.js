@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL;
+const API_BASE_URL = 'http://127.0.0.1:8000/proxy' || import.meta.env.VITE_API_URL;
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -21,6 +21,7 @@ export const movieApi = {
     discoverTv: (params) => api.get('/discover/tv', { params }),
     discoverBoth: (params) => api.get('/discover/both', { params }),
     searchMulti: (query, page = 1) => api.get('/search/multi', { params: { query, page } }),
+    getMoviesByCast: (castId, params = {}) => api.get('/discover/both', { params: { ...params, with_cast: castId } }),
     getTvDetail: (id, params = {}) => api.get(`/tv/${id}`, { params }),
     getTvSeason: (id, season, params = {}) => api.get(`/tv/${id}/season/${season}`, { params }),
     getImageUrl: (path, size = 'original') => {

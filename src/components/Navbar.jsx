@@ -22,6 +22,15 @@ const Navbar = () => {
     const navLinks = [
         { name: 'Home', path: '/', cat: 'home' },
         { name: 'Movies', path: '/?type=movie&cat=movie', cat: 'movie' },
+        {
+            name: 'Latest',
+            cat: 'latest',
+            dropdown: [
+                { name: 'All Latest', path: '/?latest=all&cat=latest' },
+                { name: 'OTT', path: '/?latest=ott&cat=latest' },
+                { name: 'Theatrical', path: '/?latest=theatrical&cat=latest' }
+            ]
+        },
         { 
             name: 'Web Series', 
             path: '/?type=tv&cat=tv', 

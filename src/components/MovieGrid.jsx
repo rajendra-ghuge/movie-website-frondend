@@ -3,7 +3,7 @@ import { useInfiniteQuery } from '@tanstack/react-query';
 import { Loader2, MoreVertical, Plus } from 'lucide-react';
 import { movieApi } from '../api';
 
-const MovieGrid = ({ fetchUrl, searchQuery, type }) => {
+const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
     const navigate = useNavigate();
 
     const { 
@@ -14,11 +14,16 @@ const MovieGrid = ({ fetchUrl, searchQuery, type }) => {
         isLoading, 
         error 
     } = useInfiniteQuery({
-        queryKey: ['movies-grid', window.location.search || searchQuery || 'default'],
+        queryKey: ['movies-grid', locationSearch || searchQuery || 'default'],
         queryFn: async ({ pageParam = 1 }) => {
             const res = searchQuery 
                 ? await movieApi.searchMulti(searchQuery, pageParam)
                 : await fetchUrl({ page: pageParam });
+            
+            // Filter out people from search results if they exist
+            if (res.data.results) {
+                res.data.results = res.data.results.filter(item => item.media_type !== 'person');
+            }
             return res.data;
         },
         getNextPageParam: (lastPage) => {
@@ -28,7 +33,8 @@ const MovieGrid = ({ fetchUrl, searchQuery, type }) => {
             return undefined;
         },
         initialPageParam: 1,
-        staleTime: 1000 * 60 * 5,
+        staleTime: 0,
+        refetchOnMount: 'always',
     });
 
     const movies = data?.pages.flatMap(page => page.results) || [];

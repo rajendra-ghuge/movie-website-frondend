@@ -34,7 +34,7 @@ const MovieDetailPage = () => {
     if (error || !movie) return <div className="loader-main">Error loading content.</div>;
 
     const trailer = movie.videos?.results?.find(v => v.type === 'Trailer' && v.site === 'YouTube') || movie.videos?.results?.[0];
-    const cast = movie.credits?.cast?.slice(0, 8).map(c => c.name).join(', ');
+    const castList = movie.credits?.cast?.slice(0, 8) || [];
     const genres = movie.genres?.map(g => g.name);
     
     // TMDB keywords are in .keywords for movies and .results for tv
@@ -86,7 +86,17 @@ const MovieDetailPage = () => {
                     <div className="meta-info">
                         <div className="meta-row">
                             <span className="meta-label">Stars:</span>
-                            <span className="meta-value">{cast || 'N/A'}</span>
+                            <div className="cast-list">
+                                {castList.length > 0 ? castList.map((c) => (
+                                    <Link 
+                                        key={c.id}
+                                        to={`/?cast=${c.id}&cn=${encodeURIComponent(c.name)}&cat=cast`}
+                                        className="keyword-tag"
+                                    >
+                                        {c.name}
+                                    </Link>
+                                )) : <span className="meta-value">N/A</span>}
+                            </div>
                         </div>
                         <div className="meta-row">
                             <span className="meta-label">Last Air:</span>
