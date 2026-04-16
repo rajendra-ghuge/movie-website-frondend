@@ -1172,3 +1172,229 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #444;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   TV / LAPTOP D-PAD FOCUS STYLES
+   Only active on viewports ≥ 1024px.
+   Mobile layout is completely unaffected.
+═══════════════════════════════════════════════════════════ */
+@media (min-width: 1024px) {
+
+  /* Prevent default blue browser outline on focused elements in TV mode */
+  .nav-link:focus,
+  .movie-card:focus,
+  .btn-load-more:focus,
+  .dropdown-item:focus {
+    outline: none;
+  }
+
+  /* ── Navbar menu item focused by D-pad ── */
+  .nav-link--tv-focused {
+    color: #ffffff !important;
+    border-bottom: 2px solid var(--accent-yellow) !important;
+    text-shadow: 0 0 12px rgba(253, 216, 53, 0.5);
+  }
+
+  .nav-icon--tv-focused {
+    color: var(--accent-yellow) !important;
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 8px rgba(253, 216, 53, 0.5));
+  }
+
+  /* ── Dropdown item focused by D-pad ── */
+  .dropdown-item--tv-focused {
+    background: rgba(253, 216, 53, 0.12) !important;
+    color: #ffffff !important;
+    padding-left: 1.5rem !important;
+    border-left: 3px solid var(--accent-yellow);
+  }
+
+  /* ── Movie card focused by D-pad ── */
+  .movie-card--tv-focused {
+    outline: 3px solid var(--accent-yellow) !important;
+    outline-offset: 4px;
+    transform: translateY(-10px) scale(1.04) !important;
+    box-shadow:
+      0 16px 40px rgba(253, 216, 53, 0.35),
+      0 0 0 3px var(--accent-yellow) !important;
+    z-index: 20;
+    position: relative;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  /* Poster zoom on focused card */
+  .movie-card--tv-focused .movie-poster {
+    transform: scale(1.05);
+  }
+
+  /* ── Load More button focused by D-pad ── */
+  .btn-load-more--tv-focused {
+    outline: 3px solid var(--accent-yellow) !important;
+    outline-offset: 4px;
+    transform: translateY(-3px) scale(1.06) !important;
+    box-shadow:
+      0 10px 30px rgba(253, 216, 53, 0.4),
+      0 0 0 3px var(--accent-yellow) !important;
+    background: var(--accent-yellow) !important;
+    color: #000 !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  /* ── Detail page: Watch Now button focused ── */
+  .btn-watch:focus {
+    outline: none;
+  }
+
+  .btn-watch--tv-focused {
+    outline: 3px solid #fff !important;
+    outline-offset: 4px;
+    transform: translateY(-3px) scale(1.03) !important;
+    box-shadow:
+      0 10px 30px rgba(253, 216, 53, 0.45),
+      0 0 0 3px var(--accent-yellow) !important;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  /* ── Detail page: Cast / Keyword tag focused ── */
+  .keyword-tag:focus {
+    outline: none;
+  }
+
+  .keyword-tag--tv-focused {
+    background: rgba(253, 216, 53, 0.18) !important;
+    border-color: var(--accent-yellow) !important;
+    color: #ffffff !important;
+    outline: 2px solid var(--accent-yellow) !important;
+    outline-offset: 2px;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(253, 216, 53, 0.3) !important;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+
+  /* ── Watch Page: Player Container focused ── */
+  .player-container-main:focus {
+    outline: none;
+  }
+
+  .player-container-main--tv-focused {
+    outline: 4px solid var(--accent-yellow) !important;
+    outline-offset: 4px;
+    box-shadow: 0 0 50px rgba(253, 216, 53, 0.4);
+    position: relative;
+    z-index: 10;
+  }
+
+  /* Overlay for TV users when player is focused */
+  .tv-player-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 20;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+
+  .player-container-main--tv-focused .tv-player-overlay {
+    opacity: 1;
+  }
+
+  .tv-player-overlay p {
+    color: #fff;
+    margin: 5px 0;
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+
+  /* Transparent button that catches the physical 'Enter' as a 'Click' */
+  .tv-interaction-bridge {
+    position: absolute;
+    inset: 0;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 30;
+    display: block;
+    width: 100%;
+    height: 100%;
+    outline: none;
+  }
+
+  /* ── Watch Page: Similar card focused ── */
+  .similar-card:focus {
+    outline: none;
+  }
+
+  .similar-card--tv-focused {
+    outline: 2px solid var(--accent-yellow) !important;
+    transform: scale(1.02);
+    background: #222 !important;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  }
+
+  /* Help message below player for TV users */
+  .tv-help-message {
+    margin-top: 15px;
+    padding: 10px 15px;
+    background: rgba(253, 216, 53, 0.1);
+    border: 1px dashed var(--accent-yellow);
+    border-radius: 8px;
+    color: var(--accent-yellow);
+    font-size: 0.95rem;
+    text-align: center;
+    animation: fadeIn 0.5s ease-out;
+  }
+
+  /* Enhanced Bridges for TV (Main Player & Trailers) */
+  .tv-interaction-bridge, .tv-trailer-bridge {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.3s cubic-bezier(0.2, 1, 0.3, 1);
+  }
+
+  .tv-interaction-bridge:focus, .tv-trailer-bridge:focus {
+    outline: 4px solid var(--accent-yellow) !important;
+    outline-offset: -4px;
+    background: rgba(253, 216, 53, 0.05);
+    box-shadow: 0 0 50px rgba(253, 216, 53, 0.4), inset 0 0 50px rgba(0,0,0,0.6);
+    transform: scale(1.02);
+  }
+
+  /* Trailer exit tip for TV */
+  .tv-trailer-exit-tip {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    background: rgba(0, 0, 0, 0.8);
+    color: var(--white);
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    z-index: 100;
+    border: 1px solid var(--accent-yellow);
+    pointer-events: none;
+    animation: fadeIn 0.5s ease-out;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+  }
+
+  .tv-trailer-exit-tip span {
+    color: var(--accent-yellow);
+    font-weight: bold;
+    text-transform: uppercase;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+}

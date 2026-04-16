@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import HomePage from './pages/HomePage';
 import MovieDetailPage from './pages/MovieDetailPage';
 import WatchPage from './pages/WatchPage';
+import useTVNavigation from './hooks/useTVNavigation';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -14,6 +15,9 @@ const queryClient = new QueryClient({
 });
 
 function App() {
+  // Initialise spatial navigation engine (laptop & TV only; mobile is unaffected)
+  useTVNavigation();
+
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>

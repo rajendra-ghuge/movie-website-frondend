@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Flame } from 'lucide-react';
 import MovieGrid from '../components/MovieGrid';
@@ -83,8 +83,6 @@ const HomePage = () => {
             else if (latest === 'theatrical') params.with_release_type = 3;
             else if (latest === 'all') params.with_release_type = '3|4';
 
-            // For combined discovery, we'll use a sort that works for both or let backend handle
-            // However, the user specifically asked for primary_release_date.desc in the example
             params.sort_by = 'primary_release_date.desc';
             
             return movieApi.discoverBoth(params);
@@ -95,19 +93,16 @@ const HomePage = () => {
             ...pageParams
         };
 
-        // Don't show upcoming/future releases
         if (type === 'movie') {
             params['primary_release_date.lte'] = today;
         } else {
             params['first_air_date.lte'] = today;
         }
 
-        // Increase vote count requirement for Rating sort
         if (params.sort_by === 'vote_average.desc') {
             params['vote_count.gte'] = 50;
         }
 
-        // Default to Indian Content (Hindi) if no specific filters are applied
         if (!lang && !genre && !provider && !s && !k && !cat) {
             params.with_original_language = 'hi';
             if (sort === 'popularity.desc') {
@@ -119,7 +114,6 @@ const HomePage = () => {
         if (lang) params.with_original_language = lang;
         if (genre) params.with_genres = genre;
         
-        // Handle specific categories
         if (cat === 'hi') params.with_original_language = 'hi';
         if (cat === 'en') params.with_original_language = 'en';
         if (cat === '16') params.with_genres = '16';
@@ -137,7 +131,6 @@ const HomePage = () => {
             params.watch_region = 'IN';
         }
 
-        // Handle Web Series Categories
         if (cat === 'tv_hi') {
             params.with_original_language = 'hi';
             return movieApi.discoverTv(params);
@@ -147,25 +140,39 @@ const HomePage = () => {
             return movieApi.discoverTv(params);
         }
 
-        // Handle specific type requests (Movies or Web Series menus)
-        // If cat is 'hi' or 'en', respect the 'type' (default movie)
         const isTvRequest = type === 'tv' || cat?.startsWith('tv');
         if (isTvRequest) return movieApi.discoverTv(params);
         
-        // Default to discoverMovies for specified categories
         if (cat === 'hi' || cat === 'en' || cat === 'movie' || type === 'movie' || cat === 'top' || cat === '16') {
             return movieApi.discoverMovies(params);
         }
 
-        // For Home/Latest - Show BOTH
-        // Pass both date limits for combined discovery
         params['primary_release_date.lte'] = today;
         params['first_air_date.lte'] = today;
         return movieApi.discoverBoth(params);
     };
 
+    const isTVSize = () => window.innerWidth >= 1024;
+
+    const handlePageKeyDown = useCallback((e) => {
+        if (!isTVSize()) return;
+
+        // Jump from Navbar to Grid content
+        const navbar = document.getElementById('tv-navbar');
+        if (navbar && navbar.contains(e.target)) {
+            // ONLY jump if we are on a top-level nav link, NOT inside a dropdown
+            const isDropdown = e.target.closest('.nav-dropdown');
+            if (e.key === 'ArrowDown' && !isDropdown) {
+                e.preventDefault();
+                const anchor = document.getElementById('tv-grid-focus-anchor');
+                anchor?.focus();
+            }
+            return;
+        }
+    }, []);
+
     return (
-        <div className="page-wrapper">
+        <div className="page-wrapper" onKeyDown={handlePageKeyDown}>
             <Navbar />
 
             <div className="container">
