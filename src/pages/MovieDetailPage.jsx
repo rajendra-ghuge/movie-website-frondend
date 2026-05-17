@@ -4,6 +4,8 @@ import { useRef, useState, useEffect, useCallback } from 'react';
 import { Loader2, Play } from 'lucide-react';
 import { movieApi } from '../api';
 import Navbar from '../components/Navbar';
+import Disclaimer from '../components/Disclaimer';
+import { DetailShimmer } from '../components/Shimmer';
 
 const isTVSize = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
 
@@ -12,7 +14,7 @@ const MovieDetailPage = () => {
     const navigate = useNavigate();
 
     // TV navigation state
-    const [activeSection, setActiveSection] = useState(null); 
+    const [activeSection, setActiveSection] = useState(null);
     const [castFocusIdx, setCastFocusIdx] = useState(0);
     const [kwFocusIdx, setKwFocusIdx] = useState(0);
     const [isInteractingWithTrailer, setIsInteractingWithTrailer] = useState(false);
@@ -26,11 +28,12 @@ const MovieDetailPage = () => {
     const { data: movie, isLoading, error } = useQuery({
         queryKey: ['detail', type, id],
         queryFn: async () => {
-            const params = { append_to_response: 'videos,credits' };
+            // Include all fields needed by both DetailPage and WatchPage so they
+            // safely share the same React Query cache entry without stale-field mismatches.
+            const params = { append_to_response: 'videos,credits,external_ids' };
             const res = type === 'movie'
                 ? await movieApi.getMovie(id, params)
                 : await movieApi.getTvDetail(id, params);
-            window.scrollTo(0, 0);
             return res.data;
         },
     });
@@ -44,6 +47,8 @@ const MovieDetailPage = () => {
     });
 
     useEffect(() => {
+        // Scroll to top on navigation — moved out of queryFn to avoid running on background refetches.
+        window.scrollTo(0, 0);
         setActiveSection(null);
         setCastFocusIdx(0);
         setKwFocusIdx(0);
@@ -58,7 +63,7 @@ const MovieDetailPage = () => {
             else if (section === 'cast') { setCastFocusIdx(idx); el = castRefs.current[idx]; }
             else if (section === 'keywords') { setKwFocusIdx(idx); el = kwRefs.current[idx]; }
             else if (section === 'trailer') el = trailerBridgeRef.current;
-            
+
             if (el) {
                 el.focus();
                 el.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -98,14 +103,21 @@ const MovieDetailPage = () => {
     }, [isInteractingWithTrailer]);
 
     useEffect(() => {
+        // Detect when focus leaves the trailer iframe. The 'blur' event on window
+        // fires when the page loses focus (e.g. user switches app). The 'focusout'
+        // on the document fires when focus moves to any other element within the page.
+        // Together these replace the old 1-second polling interval.
         const checkFocus = () => {
             if (isInteractingWithTrailer && document.activeElement !== trailerIframeRef.current) {
                 setIsInteractingWithTrailer(false);
             }
         };
-        const interval = setInterval(checkFocus, 1000);
         window.addEventListener('blur', checkFocus);
-        return () => { clearInterval(interval); window.removeEventListener('blur', checkFocus); };
+        document.addEventListener('focusout', checkFocus);
+        return () => {
+            window.removeEventListener('blur', checkFocus);
+            document.removeEventListener('focusout', checkFocus);
+        };
     }, [isInteractingWithTrailer]);
 
     // Handle Fullscreen Exit
@@ -138,7 +150,7 @@ const MovieDetailPage = () => {
         const navbar = document.getElementById('tv-navbar');
         if (navbar && navbar.contains(e.target)) {
             const isDropdown = e.target.closest('.nav-dropdown');
-            if (key === 'ArrowDown' && !isDropdown) { /* allow jump */ } 
+            if (key === 'ArrowDown' && !isDropdown) { /* allow jump */ }
             else return;
         }
 
@@ -151,37 +163,37 @@ const MovieDetailPage = () => {
         }
 
         if (activeSection === 'watch') {
-            if (key === 'ArrowDown') { 
-                e.preventDefault(); 
+            if (key === 'ArrowDown') {
+                e.preventDefault();
                 if (castCount > 0) focusSection('cast', 0);
                 else if (kwCount > 0) focusSection('keywords', 0);
                 else focusSection('trailer');
             } else if (key === 'ArrowUp') { e.preventDefault(); focusNavbar(); }
             else if (key === 'Enter') { e.preventDefault(); navigate(`/watch/${type}/${id}`); }
         } else if (activeSection === 'cast') {
-            if (key === 'ArrowLeft') { 
-                e.preventDefault(); 
-                const n = castFocusIdx > 0 ? castFocusIdx - 1 : castCount - 1; 
-                setCastFocusIdx(n); castRefs.current[n]?.focus(); 
+            if (key === 'ArrowLeft') {
+                e.preventDefault();
+                const n = castFocusIdx > 0 ? castFocusIdx - 1 : castCount - 1;
+                setCastFocusIdx(n); castRefs.current[n]?.focus();
             }
-            else if (key === 'ArrowRight') { 
-                e.preventDefault(); 
-                const n = (castFocusIdx + 1) % castCount; 
-                setCastFocusIdx(n); castRefs.current[n]?.focus(); 
+            else if (key === 'ArrowRight') {
+                e.preventDefault();
+                const n = (castFocusIdx + 1) % castCount;
+                setCastFocusIdx(n); castRefs.current[n]?.focus();
             }
             else if (key === 'ArrowDown') { e.preventDefault(); if (kwCount > 0) focusSection('keywords', 0); else focusSection('trailer'); }
             else if (key === 'ArrowUp') { e.preventDefault(); focusSection('watch'); }
             else if (key === 'Enter') { e.preventDefault(); castRefs.current[castFocusIdx]?.click(); }
         } else if (activeSection === 'keywords') {
-            if (key === 'ArrowLeft') { 
-                e.preventDefault(); 
-                const n = kwFocusIdx > 0 ? kwFocusIdx - 1 : kwCount - 1; 
-                setKwFocusIdx(n); kwRefs.current[n]?.focus(); 
+            if (key === 'ArrowLeft') {
+                e.preventDefault();
+                const n = kwFocusIdx > 0 ? kwFocusIdx - 1 : kwCount - 1;
+                setKwFocusIdx(n); kwRefs.current[n]?.focus();
             }
-            else if (key === 'ArrowRight') { 
-                e.preventDefault(); 
-                const n = (kwFocusIdx + 1) % kwCount; 
-                setKwFocusIdx(n); kwRefs.current[n]?.focus(); 
+            else if (key === 'ArrowRight') {
+                e.preventDefault();
+                const n = (kwFocusIdx + 1) % kwCount;
+                setKwFocusIdx(n); kwRefs.current[n]?.focus();
             }
             else if (key === 'ArrowUp') { e.preventDefault(); if (castCount > 0) focusSection('cast', 0); else focusSection('watch'); }
             else if (key === 'ArrowDown') { e.preventDefault(); focusSection('trailer'); }
@@ -192,35 +204,43 @@ const MovieDetailPage = () => {
         }
     }, [activeSection, castFocusIdx, kwFocusIdx, isInteractingWithTrailer, focusSection, focusNavbar, navigateUpFromTrailer, navigate, type, id]);
 
-    if (isLoading) return <div className="loader-main"><Loader2 className="animate-spin" size={48} color="#fdd835" /></div>;
+    if (isLoading) return (
+        <div className="page-wrapper">
+            <Navbar />
+            <DetailShimmer />
+        </div>
+    );
     if (error || !movie) return <div className="loader-main">Error loading content.</div>;
 
     const trailer = movie.videos?.results?.find(v => v.type === 'Trailer') || movie.videos?.results?.[0];
     const castList = movie.credits?.cast?.slice(0, 8) || [];
     const keywordsList = (type === 'movie' ? keywordsData?.keywords : keywordsData?.results)?.slice(0, 15) || [];
 
+    // Compute once per render — avoids calling window.innerWidth + UA check ~8 times in JSX.
+    const tvMode = isTVSize();
+
     return (
         <div className="page-wrapper" onKeyDown={handlePageKeyDown}>
             <Navbar />
-            <div id="tv-grid-focus-anchor" tabIndex={isTVSize() ? 0 : -1} onFocus={() => isTVSize() && focusSection('watch')} style={{ position: 'absolute', opacity: 0 }} aria-hidden="true" />
+            <div id="tv-grid-focus-anchor" tabIndex={tvMode ? 0 : -1} onFocus={() => tvMode && focusSection('watch')} style={{ position: 'absolute', opacity: 0 }} aria-hidden="true" />
             <div className="detail-page">
                 <div className="detail-left"><img src={movieApi.getImageUrl(movie.poster_path, 'w500')} alt="" className="detail-poster-large" /></div>
                 <div className="detail-right">
                     <h1 className="detail-title-large">{movie.title || movie.name}</h1>
                     <div className="detail-actions">
-                        <Link ref={watchBtnRef} to={`/watch/${type}/${id}`} tabIndex={-1} onFocus={() => isTVSize() && setActiveSection('watch')} className={`btn-watch${activeSection === 'watch' ? ' btn-watch--tv-focused' : ''}`}><Play size={20} fill="currentColor" /> Watch Now</Link>
+                        <Link ref={watchBtnRef} to={`/watch/${type}/${id}`} tabIndex={-1} onFocus={() => tvMode && setActiveSection('watch')} className={`btn-watch${activeSection === 'watch' ? ' btn-watch--tv-focused' : ''}`}><Play size={20} fill="currentColor" /> Watch Now</Link>
                     </div>
                     <p className="detail-overview">{movie.overview}</p>
                     <div className="meta-info">
                         <div className="meta-row"><span className="meta-label">Stars:</span>
                             <div className="cast-list">{castList.map((c, idx) => (
-                                <Link key={c.id} ref={el => { castRefs.current[idx] = el; }} to={`/?cast=${c.id}&cn=${encodeURIComponent(c.name)}&cat=cast`} tabIndex={-1} onFocus={() => { if (isTVSize()) { setActiveSection('cast'); setCastFocusIdx(idx); } }} className={`keyword-tag${activeSection === 'cast' && castFocusIdx === idx ? ' keyword-tag--tv-focused' : ''}`}>{c.name}</Link>
+                                <Link key={c.id} ref={el => { castRefs.current[idx] = el; }} to={`/?cast=${c.id}&cn=${encodeURIComponent(c.name)}&cat=cast`} tabIndex={-1} onFocus={() => { if (tvMode) { setActiveSection('cast'); setCastFocusIdx(idx); } }} className={`keyword-tag${activeSection === 'cast' && castFocusIdx === idx ? ' keyword-tag--tv-focused' : ''}`}>{c.name}</Link>
                             ))}</div>
                         </div>
                     </div>
                     <div className="keyword-row"><span className="meta-label">Keywords:</span>
                         <div className="keyword-tags">{keywordsList.map((kw, idx) => (
-                            <Link key={kw.id} ref={el => { kwRefs.current[idx] = el; }} to={`/?k=${kw.id}&kn=${encodeURIComponent(kw.name)}`} tabIndex={-1} onFocus={() => { if (isTVSize()) { setActiveSection('keywords'); setKwFocusIdx(idx); } }} className={`keyword-tag${activeSection === 'keywords' && kwFocusIdx === idx ? ' keyword-tag--tv-focused' : ''}`}>{kw.name}</Link>
+                            <Link key={kw.id} ref={el => { kwRefs.current[idx] = el; }} to={`/?k=${kw.id}&kn=${encodeURIComponent(kw.name)}`} tabIndex={-1} onFocus={() => { if (tvMode) { setActiveSection('keywords'); setKwFocusIdx(idx); } }} className={`keyword-tag${activeSection === 'keywords' && kwFocusIdx === idx ? ' keyword-tag--tv-focused' : ''}`}>{kw.name}</Link>
                         ))}</div>
                     </div>
                     <div className="trailer-section-container">
@@ -228,27 +248,30 @@ const MovieDetailPage = () => {
                         {trailer ? (
                             <div className="trailer-section" style={{ position: 'relative' }}>
                                 <iframe ref={trailerIframeRef} src={`https://www.youtube.com/embed/${trailer.key}?enablejsapi=1${isInteractingWithTrailer ? '&autoplay=1&mute=1' : ''}`} title="Trailer" allowFullScreen />
-                                {isTVSize() && !isInteractingWithTrailer && activeSection === 'trailer' && (
-                                    <button 
-                                        ref={trailerBridgeRef} 
-                                        className="tv-trailer-bridge" 
-                                        onKeyDown={(e) => { if (e.key === 'ArrowUp') { e.preventDefault(); navigateUpFromTrailer(); } }} 
+                                {tvMode && !isInteractingWithTrailer && activeSection === 'trailer' && (
+                                    <button
+                                        ref={trailerBridgeRef}
+                                        className="tv-trailer-bridge"
+                                        onKeyDown={(e) => { if (e.key === 'ArrowUp') { e.preventDefault(); navigateUpFromTrailer(); } }}
                                         onClick={() => {
                                             setIsInteractingWithTrailer(true);
                                             // Auto-fullscreen for trailer
                                             const container = trailerIframeRef.current?.parentElement;
                                             if (container?.requestFullscreen) {
-                                                container.requestFullscreen().catch(() => {});
+                                                container.requestFullscreen().catch(() => { });
                                             }
-                                        }} 
+                                        }}
                                     />
                                 )}
-                                {isTVSize() && isInteractingWithTrailer && <div className="tv-trailer-exit-tip">Press <span>Back / Exit</span> to return</div>}
+                                {tvMode && isInteractingWithTrailer && <div className="tv-trailer-exit-tip">Press <span>Back / Exit</span> to return</div>}
                             </div>
                         ) : <div className="no-trailer">N/A</div>}
                     </div>
                 </div>
             </div>
+            <footer className="footer" style={{ marginTop: '4rem', marginBottom: '2rem', opacity: 0.5, fontSize: '0.8rem', textAlign: 'center' }}>
+                <p>&copy; 2026 4KHDHUB India &bull; All Rights Reserved &bull; <Disclaimer /></p>
+            </footer>
         </div>
     );
 };

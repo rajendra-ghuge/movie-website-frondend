@@ -4,6 +4,9 @@ dist/
 dist-ssr/
 *.local
 
+# Android
+android/
+
 # Logs
 npm-debug.log*
 yarn-debug.log*

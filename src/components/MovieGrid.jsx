@@ -3,12 +3,17 @@ import { useNavigate } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { Loader2, MoreVertical, Plus } from 'lucide-react';
 import { movieApi } from '../api';
+import { GridShimmer } from './Shimmer';
 
 /* ─────────────────────────────────────────────────────────
  * TV keyboard navigation only active on laptop / TV (≥ 1024px).
  * Mobile layout & behaviour are completely unchanged.
  * ───────────────────────────────────────────────────────── */
-const isTVSize = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
+const isTVSize = () => {
+    if (typeof window === 'undefined') return false;
+    const isTVUA = /TV|LargeScreen|AndroidTV|SmartTV/i.test(navigator.userAgent);
+    return window.innerWidth >= 1024 || isTVUA;
+};
 
 // Get the rendered top-offset of a card element (used for row detection)
 // We round to avoid sub-pixel differences between cards in the same row.
@@ -51,8 +56,7 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
             return undefined;
         },
         initialPageParam: 1,
-        staleTime: 0,
-        refetchOnMount: 'always',
+        staleTime: 1000 * 60 * 2, // 2 minutes — avoids refetch on back-navigation
     });
 
     const movies = data?.pages.flatMap(page => page.results) || [];
@@ -77,8 +81,8 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
         }
 
         prevMoviesLenRef.current = newLen;
-    // focusCard is defined below; we use the ref trick to keep deps stable
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // focusCard is defined below; we use the ref trick to keep deps stable
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [movies.length]);
 
     const handleMovieClick = (movie) => {
@@ -256,9 +260,7 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
     if (isLoading) return (
         <div className="movie-grid-container">
             {focusAnchor}
-            <div className="loader-container">
-                <Loader2 className="animate-spin" size={40} color="#fdd835" />
-            </div>
+            <GridShimmer />
         </div>
     );
 
@@ -293,7 +295,7 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
                         >
                             <div className="poster-container">
                                 <img
-                                    src={movieApi.getImageUrl(movie.poster_path, 'w500')}
+                                    src={movieApi.getImageUrl(movie.poster_path, 'w342')}
                                     alt={movie.title || movie.name}
                                     className="movie-poster"
                                     loading="lazy"

@@ -6,7 +6,11 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
    TV keyboard nav is ONLY active on laptop / TV viewports.
    Mobile (< 1024px) is completely unchanged — no impact.
 ───────────────────────────────────────────────────────── */
-const isTV = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
+const isTV = () => {
+    if (typeof window === 'undefined') return false;
+    const isTVUA = /TV|LargeScreen|AndroidTV|SmartTV/i.test(navigator.userAgent);
+    return window.innerWidth >= 1024 || isTVUA;
+};
 
 // ── DropdownMenu ───────────────────────────────────────────
 // Handles Up/Down between items, Enter to select, Escape/Left to close
@@ -42,7 +46,7 @@ const DropdownMenu = ({ items, onSelect, onClose }) => {
             e.preventDefault();
             e.stopPropagation();
             onSelect(selectableItems[focusedIdx]);
-        } else if (key === 'ArrowLeft' || key === 'Escape' || key === 'Backspace') {
+        } else if (key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Escape' || key === 'Backspace') {
             e.preventDefault();
             e.stopPropagation();
             onClose();
@@ -102,6 +106,26 @@ const Navbar = () => {
                 { name: 'All Latest', path: '/?latest=all&cat=latest' },
                 { name: 'OTT', path: '/?latest=ott&cat=latest' },
                 { name: 'Theatrical', path: '/?latest=theatrical&cat=latest' }
+            ]
+        },
+        {
+            name: 'Top Rated', cat: 'top',
+            dropdown: [
+                { name: 'All Top Rated', path: '/?cat=top' },
+                { name: 'Top Movies', path: '/?type=movie&cat=top' },
+                { name: 'Top TV Shows', path: '/?type=tv&cat=top' },
+                { name: 'Top Indian Movies', path: '/?type=movie&lang=hi&cat=top' },
+                { name: 'Top Hollywood Movies', path: '/?type=movie&lang=en&cat=top' },
+                { name: 'Top Hollywood Shows', path: '/?type=tv&lang=en&cat=top' }
+            ]
+        },
+        {
+            name: 'Anime', cat: 'anime',
+            dropdown: [
+                { name: 'All Anime', path: '/?lang=ja&genre=16&cat=anime' },
+                { name: 'Anime Movies', path: '/?type=movie&lang=ja&genre=16&cat=anime' },
+                { name: 'Anime Series', path: '/?type=tv&lang=ja&genre=16&cat=anime' },
+                { name: 'Top Rated Anime', path: '/?type=tv&lang=ja&genre=16&sort=vote_average.desc&cat=anime' }
             ]
         },
         {
@@ -180,6 +204,21 @@ const Navbar = () => {
         }
     ];
 
+    // Sync native DOM focus with the visual TV focus index
+    useEffect(() => {
+        const tvMode = isTV();
+        if (!tvMode || activeDropdown !== null || isSearchOpen) return;
+        
+        const timer = setTimeout(() => {
+            if (focusedNavIdx === navLinks.length) {
+                searchIconRef.current?.focus();
+            } else {
+                navLinkRefs.current[focusedNavIdx]?.focus();
+            }
+        }, 100);
+        return () => clearTimeout(timer);
+    }, [focusedNavIdx, activeDropdown, isSearchOpen, navLinks.length]);
+
     // ── After every route change: close menus & restore nav focus ──
     const lastPathname = useRef(location.pathname);
 
@@ -221,7 +260,7 @@ const Navbar = () => {
         }, 150); // Increased delay slightly for better TV compatibility
 
         return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.pathname, location.search]);
 
     // ── Sync DOM focus when focusedNavIdx changes via arrow keys ──
@@ -277,7 +316,12 @@ const Navbar = () => {
             navigate(item.path);
         }
         setActiveDropdown(null);
-        // Focus will be restored by the location-change useEffect above
+        // After selecting a dropdown item, move the TV focus indicator back to Home (index 0)
+        // so only one yellow underline is ever shown at a time.
+        if (isTV()) {
+            setFocusedNavIdx(0);
+            setTimeout(() => navLinkRefs.current[0]?.focus({ preventScroll: true }), 50);
+        }
     };
 
     const handleDropdownClose = () => {
@@ -292,11 +336,20 @@ const Navbar = () => {
             e.stopPropagation();
         }
         if (e.key === 'Enter') {
+            e.preventDefault();
             e.stopPropagation();
             if (searchQuery.trim()) {
                 navigate(`/?s=${encodeURIComponent(searchQuery.trim())}&cat=search`);
                 setIsSearchOpen(false);
                 setSearchQuery('');
+                
+                // Reset TV focus to Home when search is executed, just like dropdown filters do.
+                if (isTV()) {
+                    setFocusedNavIdx(0);
+                    // The useEffect above will naturally pick this up and focus navLinkRefs.current[0],
+                    // but we can also force it here for immediate feedback:
+                    setTimeout(() => navLinkRefs.current[0]?.focus({ preventScroll: true }), 50);
+                }
             }
         }
     };
@@ -309,6 +362,11 @@ const Navbar = () => {
     // ── Navbar keyboard handler ────────────────────────────
     const handleNavKeyDown = useCallback((e) => {
         if (!isTV()) return;
+
+        // If the TV video player is in interactive/fullscreen mode, completely
+        // ignore all key events so D-pad presses inside the iframe don't
+        // mutate navbar state (focused item, open dropdowns, etc.) in the background.
+        if (window.__tvPlayerActive) return;
 
         // While search is open, global nav keys (Arrows/Enter) should be disabled
         // to prevent double-navigation or focus jumping.
@@ -338,7 +396,7 @@ const Navbar = () => {
         } else if (key === 'Enter' || key === 'ArrowDown') {
             e.preventDefault();
             const isSearchBtn = focusedNavIdx === navLinks.length;
-            
+
             if (isSearchBtn) {
                 if (key === 'Enter') setIsSearchOpen(true);
                 else { /* ArrowDown from Search also goes to grid */
@@ -362,11 +420,14 @@ const Navbar = () => {
             // Already at the top — no-op
             e.preventDefault();
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeDropdown, isSearchOpen, focusedNavIdx, navLinks, navigate]);
 
+    // Compute once per render — avoids calling window.innerWidth + UA check ~15 times in JSX.
+    const tvMode = isTV();
+
     return (
-        <nav className="navbar" onKeyDown={handleNavKeyDown} id="tv-navbar">
+        <nav className={`navbar ${tvMode ? 'navbar--tv-mode' : ''}`} onKeyDown={handleNavKeyDown} id="tv-navbar">
             <div className="nav-left">
                 {/* Hamburger — mobile only */}
                 <button className="mobile-menu-btn" onClick={() => setIsMenuOpen(true)}>
@@ -383,7 +444,7 @@ const Navbar = () => {
                         const isActive =
                             currentCat === link.cat ||
                             (link.cat === 'home' && location.pathname === '/' && !location.search);
-                        const isKbFocused = focusedNavIdx === idx && isTV();
+                        const isKbFocused = focusedNavIdx === idx && tvMode;
                         const isOpen = activeDropdown === link.name;
 
                         return (
@@ -406,7 +467,7 @@ const Navbar = () => {
                                         // For non-dropdown links, React Router handles navigation
                                     }}
                                     onKeyDown={(e) => {
-                                        if (!isTV()) return;
+                                        if (!tvMode) return;
                                         if (e.key === 'ArrowDown' && link.dropdown) {
                                             e.preventDefault();
                                             e.stopPropagation();
@@ -414,11 +475,11 @@ const Navbar = () => {
                                         }
                                     }}
                                     onFocus={() => {
-                                        if (isTV()) setFocusedNavIdx(idx);
+                                        if (tvMode) setFocusedNavIdx(idx);
                                     }}
                                     // tabIndex: on TV, only the "currently focused" item is
                                     // tab-reachable so Tab key jumps predictably.
-                                    tabIndex={isTV() ? (idx === focusedNavIdx ? 0 : -1) : 0}
+                                    tabIndex={tvMode ? (idx === focusedNavIdx ? 0 : -1) : 0}
                                 >
                                     {link.icon && link.icon}
                                     {link.name && link.name}
@@ -452,24 +513,28 @@ const Navbar = () => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             onKeyDown={handleSearchKeyDown}
                         />
-                        <X 
+                        <button
                             ref={searchIconRef}
-                            size={20} 
-                            className={`nav-icon ${focusedNavIdx === navLinks.length && isTV() ? 'nav-icon--tv-focused' : ''}`}
-                            tabIndex={isTV() ? 0 : -1}
+                            className={`nav-icon-btn ${focusedNavIdx === navLinks.length && tvMode ? 'nav-icon--tv-focused' : ''}`}
+                            tabIndex={tvMode ? 0 : -1}
                             onKeyDown={(e) => { if (e.key === 'Enter') setIsSearchOpen(false); }}
-                            onClick={() => setIsSearchOpen(false)} 
-                        />
+                            onClick={() => setIsSearchOpen(false)}
+                            aria-label="Close Search"
+                        >
+                            <X size={20} className="nav-icon" />
+                        </button>
                     </div>
                 ) : (
-                    <Search 
+                    <button
                         ref={searchIconRef}
-                        size={20} 
-                        className={`nav-icon ${focusedNavIdx === navLinks.length && isTV() ? 'nav-icon--tv-focused' : ''}`}
-                        tabIndex={isTV() ? 0 : -1}
+                        className={`nav-icon-btn ${focusedNavIdx === navLinks.length && tvMode ? 'nav-icon--tv-focused' : ''}`}
+                        tabIndex={tvMode ? 0 : -1}
                         onKeyDown={(e) => { if (e.key === 'Enter') setIsSearchOpen(true); }}
-                        onClick={() => setIsSearchOpen(true)} 
-                    />
+                        onClick={() => setIsSearchOpen(true)}
+                        aria-label="Open Search"
+                    >
+                        <Search size={20} className="nav-icon" />
+                    </button>
                 )}
             </div>
 

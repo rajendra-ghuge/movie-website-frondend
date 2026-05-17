@@ -1,0 +1,434 @@
+.watch-layout {
+  display: flex;
+  flex-direction: row;
+  padding: 2rem 4rem;
+  padding-top: 80px;
+  /* 64px navbar + 16px gap */
+  gap: 2rem;
+}
+
+.watch-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding-right: 0.5rem;
+}
+
+.watch-right {
+  width: 400px;
+  background: transparent;
+  padding: 0 0 0 2rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  isolation: isolate;
+  contain: layout style;
+}
+
+.player-container-main {
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  border: 2px solid transparent;
+  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s, border-color 0.3s;
+}
+
+.player-container-main--tv-focused {
+  transform: scale(1.02);
+  border-color: var(--accent-yellow);
+  box-shadow: 0 15px 40px rgba(253, 216, 53, 0.2), 0 0 0 2px var(--accent-yellow);
+  z-index: 20;
+}
+
+.player-container-main:fullscreen,
+.player-container-main:-webkit-full-screen {
+  border: none !important;
+  border-radius: 0 !important;
+  max-width: 100% !important;
+  aspect-ratio: auto !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.watch-iframe {
+  width: 100%;
+  height: 100%;
+  border: none !important;
+  outline: none !important;
+  display: block;
+  background: #000;
+  margin: 0;
+  padding: 0;
+}
+
+.player-shimmer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.player-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle, #1a1a1a 0%, #000 100%);
+  color: #666;
+  text-align: center;
+  padding: 2rem;
+}
+
+.player-placeholder h3 {
+  color: #eee;
+  margin: 1rem 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.player-placeholder p {
+  color: var(--accent-yellow);
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+}
+
+.watch-controls-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0a0a0a;
+  padding: 1rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.server-selection {
+  background: rgba(255, 255, 255, 0.02);
+  padding: 1.25rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  width: 100%;
+}
+
+.server-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  cursor: default;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.server-buttons-list {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.5rem;
+}
+
+.server-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ccc;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+  white-space: nowrap;
+  min-width: 60px;
+}
+
+.server-btn:hover {
+  border-color: var(--accent-yellow);
+  color: white;
+}
+
+.server-btn.active {
+  background: var(--accent-yellow);
+  color: black;
+  border-color: var(--accent-yellow);
+}
+
+.btn-next-ep {
+  background: var(--accent-yellow);
+  color: black;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 4px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.btn-next-ep:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(253, 216, 53, 0.3);
+}
+
+.watch-title {
+  font-size: 1.75rem;
+  font-weight: 900;
+  margin: 1rem 0 0.5rem;
+  line-height: 1.3;
+}
+
+.watch-subtitle {
+  color: var(--accent-yellow);
+  font-weight: 700;
+  font-size: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.episode-selector-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.selector-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.selector-header h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.season-dropdown {
+  background: #1a1a1a;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 0.4rem 0.8rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.season-tv-selector {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-width: 170px;
+  max-width: 100%;
+  background: #1a1a1a;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.45rem 0.7rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.season-tv-selector.is-open {
+  border-color: var(--accent-yellow);
+  z-index: 40;
+}
+
+.season-tv-arrow {
+  flex-shrink: 0;
+  color: var(--accent-yellow);
+}
+
+.season-tv-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.season-tv-menu {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  width: min(260px, 75vw);
+  max-height: 280px;
+  overflow-y: auto;
+  background: #111;
+  border: 1px solid rgba(253, 216, 53, 0.45);
+  border-radius: 6px;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.55);
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  z-index: 50;
+}
+
+.season-tv-option {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #ddd;
+  text-align: left;
+  padding: 0.65rem 0.75rem;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.season-tv-option.active {
+  color: var(--accent-yellow);
+  background: rgba(253, 216, 53, 0.08);
+}
+
+.season-tv-option.focused,
+.season-tv-option:focus {
+  color: #000;
+  background: var(--accent-yellow);
+  border-color: var(--accent-yellow);
+  outline: none;
+}
+
+.episodes-scroll-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+
+.episode-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.2s;
+}
+
+.episode-item:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.episode-item.active {
+  border-color: var(--accent-yellow);
+  background: rgba(253, 216, 53, 0.05);
+}
+
+.ep-num {
+  font-weight: 900;
+  color: var(--accent-yellow);
+  font-size: 0.8rem;
+  min-width: 25px;
+}
+
+.ep-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ep-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-bottom: 0.1rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ep-date {
+  font-size: 0.65rem;
+  color: #666;
+}
+
+.watch-cast h3 {
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.watch-cast p {
+  font-size: 0.85rem;
+  color: #aaa;
+  line-height: 1.6;
+}
+
+.watch-similar {
+  margin-top: 1rem;
+}
+
+.watch-similar h3 {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.similar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 300px;
+  contain: layout;
+}
+
+.similar-card {
+  display: flex;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 6px;
+  overflow: hidden;
+  text-decoration: none;
+  color: white;
+  transition: all 0.2s;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.similar-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: var(--accent-yellow);
+}
+
+/* Explicit dimensions prevent layout shift when lazy images load */
+.similar-card img {
+  width: 60px;
+  height: 90px;
+  min-width: 60px;
+  min-height: 90px;
+  object-fit: cover;
+  aspect-ratio: 2/3;
+  background: #1a1a1a;
+}

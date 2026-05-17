@@ -1,11 +1,57 @@
 import axios from 'axios';
 
-const API_BASE_URL =import.meta.env.VITE_API_URL;
+// 1. Get initial URL from localStorage or environment variable (ZERO DELAY)
+const INITIAL_API_URL = localStorage.getItem('dynamic_api_url') || import.meta.env.VITE_API_URL;
 
 const api = axios.create({
-    baseURL: API_BASE_URL,
+    baseURL: INITIAL_API_URL,
     timeout: 15000,
 });
+
+// 2. Background Sync: Check Gist invisibly and update if needed
+export const syncDynamicConfig = async () => {
+    try {
+        const configUrl = import.meta.env.VITE_SERVER_CONFIG_URL;
+        if (!configUrl) return;
+
+        const res = await axios.get(configUrl);
+        if (res.data && res.data.api_base_url) {
+            const newUrl = res.data.api_base_url;
+            if (newUrl !== api.defaults.baseURL) {
+                api.defaults.baseURL = newUrl;
+                localStorage.setItem('dynamic_api_url', newUrl);
+            }
+        }
+    } catch (err) {
+        // Silently ignore sync failures
+    }
+};
+
+// We intentionally DO NOT call syncDynamicConfig() on app load.
+// We want to use the local/VITE_API_URL until it actually fails!
+
+// 4. Auto-failover Interceptor
+// If the Render backend goes down, this catches the failure, reads the Gist, and retries the request seamlessly!
+api.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+        
+        // If it's a network error (no response) or server error, and we haven't retried yet
+        if (!originalRequest._retry && (!error.response || error.response.status >= 500)) {
+            originalRequest._retry = true;
+            
+            await syncDynamicConfig();
+            
+            // Update the failed request's base URL to the newly found URL
+            originalRequest.baseURL = api.defaults.baseURL;
+            
+            // Retry the request automatically
+            return api(originalRequest);
+        }
+        return Promise.reject(error);
+    }
+);
 
 export const movieApi = {
     getMovie: (id, params = {}) => api.get(`/movie/${id}`, { params }),
@@ -25,9 +71,66 @@ export const movieApi = {
     getTvDetail: (id, params = {}) => api.get(`/tv/${id}`, { params }),
     getTvSeason: (id, season, params = {}) => api.get(`/tv/${id}/season/${season}`, { params }),
     getImageUrl: (path, size = 'original') => {
-        if (!path) return 'https://via.placeholder.com/500x750?text=No+Image';
+        if (!path) return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='750' fill='%23111'%3E%3Crect width='500' height='750'/%3E%3Ctext x='50%25' y='50%25' fill='%23555' font-family='sans-serif' font-size='24' text-anchor='middle' dy='.3em'%3ENo Image%3C/text%3E%3C/svg%3E";
         const cleanPath = path.startsWith('/') ? path.slice(1) : path;
-        return `${API_BASE_URL}/image/${size}/${cleanPath}`;
+        return `${api.defaults.baseURL}/image/${size}/${cleanPath}`;
+    },
+    getServerConfig: async () => {
+        const DEFAULT_CONFIG = {
+            servers: [
+                { id: 4, label: 'S4 - Recommended' },
+                { id: 1, label: 'S1' },
+                { id: 2, label: 'S2' },
+                { id: 3, label: 'S3' },
+                { id: 5, label: 'S5-indian' },
+                { id: 6, label: 'S6' },
+                { id: 7, label: 'S7-hindi dubbed' },
+                { id: 8, label: 'S8' },
+                { id: 9, label: 'S9' },
+                { id: 10, label: 'S10' },
+                { id: 11, label: 'S11' }
+            ],
+            movie: {
+                5: "https://vidlux.site/embed/movie/{id}",
+                1: "https://vidsrc.cc/v3/embed/movie/{id}?autoPlay=1&muted=1",
+                2: "https://moviesapi.club/movie/{id}?autoplay=1",
+                3: "https://vidsrc.me/embed/movie?tmdb={id}&autoplay=1",
+                4: "https://player.videasy.net/movie/{id}?autoplay=1",
+                6: "https://vidlink.pro/movie/{id}?title=true&poster=true&autoplay=true&muted=true",
+                7: "https://www.vidsrc.wtf/api/2/movie/?id={id}-{slug}&autoplay=1",
+                8: "https://www.vidking.net/embed/movie/{id}?autoplay=1",
+                9: "https://player.smashy.stream/movie/{id}?autoplay=1",
+                10: "https://vidsrc.wtf/api/3/movie/?id={id}&autoplay=1",
+                11: "https://peachify.top/embed/movie/{id}"
+            },
+            tv: {
+                5: "https://vidlux.site/embed/tv/{id}/{s}/{e}",
+                1: "https://vidsrc.cc/v3/embed/tv/{id}/{s}/{e}?autoPlay=1&muted=1",
+                2: "https://moviesapi.club/tv/{id}-{s}-{e}?autoplay=1",
+                3: "https://vidsrc.me/embed/tv?tmdb={id}&season={s}&episode={e}&autoplay=1",
+                4: "https://player.videasy.net/tv/{id}/{s}/{e}?nextEpisode=true&episodeSelector=true&autoplay=1",
+                6: "https://vidlink.pro/tv/{id}/{s}/{e}?title=true&poster=true&autoplay=true&muted=true&nextbutton=true",
+                7: "https://www.vidsrc.wtf/api/2/tv/?id={id}&s={s}&e={e}&autoplay=1",
+                8: "https://www.vidking.net/embed/tv/{id}-{slug}/{s}/{e}?autoplay=1",
+                9: "https://player.smashy.stream/tv/{id}?s={s}&e={e}&autoplay=1",
+                10: "https://vidsrc.wtf/api/3/tv/?id={id}&s={s}&e={e}&autoplay=1",
+                11: "https://peachify.top/embed/tv/{id}/{s}/{e}"
+            }
+        };
+
+        try {
+            const configUrl = import.meta.env.VITE_SERVER_CONFIG_URL;
+            if (!configUrl) return DEFAULT_CONFIG;
+
+            // Bypass axios instance to avoid API_BASE_URL prefixing
+            const res = await axios.get(configUrl);
+            if (res.data && res.data.servers) {
+                return res.data;
+            }
+            return DEFAULT_CONFIG;
+        } catch (err) {
+            return DEFAULT_CONFIG;
+        }
     },
 };
 

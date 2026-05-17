@@ -1,8 +1,9 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useMemo, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Flame } from 'lucide-react';
 import MovieGrid from '../components/MovieGrid';
 import Navbar from '../components/Navbar';
+import Disclaimer from '../components/Disclaimer';
 import { movieApi } from '../api';
 
 const HomePage = () => {
@@ -24,7 +25,7 @@ const HomePage = () => {
     const year = query.get('y') || query.get('year');
     const minRating = query.get('min_rating');
 
-    const getTitle = () => {
+    const pageTitle = useMemo(() => {
         if (s) return `Search results for "${s}"`;
         if (k && kn) return `Keyword: ${kn}`;
         if (cast && cn) return `Movies starring ${cn}`;
@@ -37,7 +38,18 @@ const HomePage = () => {
             if (latest === 'theatrical') return 'Latest Theatrical Releases';
             return 'Latest Releases';
         }
-        if (cat === 'top') return 'Top Rated IMDb';
+        if (cat === 'top') {
+            const region = lang === 'hi' ? 'Indian ' : (lang === 'en' ? 'Hollywood ' : '');
+            if (type === 'tv') return `Top Rated ${region}TV Shows`;
+            if (type === 'movie') return `Top Rated ${region}Movies`;
+            return `Top Rated ${region}IMDb`;
+        }
+        if (cat === 'anime') {
+            if (sort === 'vote_average.desc') return 'Top Rated Anime';
+            if (type === 'tv') return 'Anime Series';
+            if (type === 'movie') return 'Anime Movies';
+            return 'All Anime';
+        }
         if (cat === 'tv_hi') return 'Indian Web Series';
         if (cat === 'tv_en') return 'Hollywood Web Series';
         if (cat === 'dice') return `Random (${lang === 'en' ? 'Hollywood' : 'Indian'})`;
@@ -45,15 +57,16 @@ const HomePage = () => {
         if (type === 'tv') return 'Latest Web Series';
         if (type === 'movie' && !lang && !genre) return 'Bollywood Highlights';
         return 'Filtered Content';
-    };
+    }, [s, k, kn, cast, cn, cat, latest, lang, type, sort, genre]);
 
-    const fetchUrlData = (pageParams = { page: 1 }) => {
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const fetchUrlData = useCallback((pageParams = { page: 1 }) => {
         if (s) return movieApi.searchMulti(s, pageParams.page);
         if (k) return movieApi.getMoviesByKeyword(k, pageParams);
         if (cast) return movieApi.getMoviesByCast(cast, pageParams);
 
         const today = new Date().toISOString().split('T')[0];
-        
+
         // Handle Random Discovery
         if (cat === 'dice') {
             const diceParams = {
@@ -84,7 +97,7 @@ const HomePage = () => {
             else if (latest === 'all') params.with_release_type = '3|4';
 
             params.sort_by = 'primary_release_date.desc';
-            
+
             return movieApi.discoverBoth(params);
         }
 
@@ -113,13 +126,13 @@ const HomePage = () => {
 
         if (lang) params.with_original_language = lang;
         if (genre) params.with_genres = genre;
-        
+
         if (cat === 'hi') params.with_original_language = 'hi';
         if (cat === 'en') params.with_original_language = 'en';
         if (cat === '16') params.with_genres = '16';
         if (cat === 'top') {
             params.sort_by = 'vote_average.desc';
-            params['vote_count.gte'] = 100;
+            params['vote_count.gte'] = 300;
         }
 
         if (year) {
@@ -142,7 +155,7 @@ const HomePage = () => {
 
         const isTvRequest = type === 'tv' || cat?.startsWith('tv');
         if (isTvRequest) return movieApi.discoverTv(params);
-        
+
         if (cat === 'hi' || cat === 'en' || cat === 'movie' || type === 'movie' || cat === 'top' || cat === '16') {
             return movieApi.discoverMovies(params);
         }
@@ -150,7 +163,7 @@ const HomePage = () => {
         params['primary_release_date.lte'] = today;
         params['first_air_date.lte'] = today;
         return movieApi.discoverBoth(params);
-    };
+    }, [location.search]);
 
     const isTVSize = () => window.innerWidth >= 1024;
 
@@ -178,7 +191,7 @@ const HomePage = () => {
             <div className="container">
                 <div className="section-header">
                     <Flame size={24} color="#fdd835" fill="#fdd835" />
-                    <span>{getTitle()}</span>
+                    <span>{pageTitle}</span>
                 </div>
 
                 <MovieGrid
@@ -189,7 +202,7 @@ const HomePage = () => {
                 />
 
                 <footer className="footer" style={{ marginTop: '4rem', opacity: 0.5, fontSize: '0.8rem', textAlign: 'center' }}>
-                    <p>&copy; 2026 4KHDHUB India &bull; All Rights Reserved</p>
+                    <p>&copy; 2026 4KHDHUB India &bull; All Rights Reserved &bull; <Disclaimer /></p>
                 </footer>
             </div>
         </div>

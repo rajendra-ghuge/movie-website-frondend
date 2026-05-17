@@ -1,0 +1,119 @@
+/* Mobile / Tablet Styles (< 1024px) */
+@media (max-width: 1023px) {
+  /* Navbar */
+  .navbar {
+    padding: 1rem 1.5rem;
+    padding-top: calc(1rem + env(safe-area-inset-top));
+    background: #111111;
+    position: sticky;
+  }
+  .nav-brand { font-size: 1.4rem; }
+  .nav-search-input { width: 100px; }
+  .nav-links { display: none; }
+  .mobile-menu-btn { display: flex; }
+  
+  /* Layouts */
+  .container {
+    padding: 0 0.75rem; /*  0 0.75rem Horizontal padding replaces grid gap for consistent spacing on mobile */
+   
+  }
+  
+  /* Detail Page */
+  .detail-page {
+    flex-direction: column;
+    padding: 1rem;
+    
+    gap: 1.5rem;
+  }
+  .detail-left { flex: none; width: 100%; max-width: 280px; margin: 0 auto; position: static; }
+  .detail-title-large { font-size: 1.75rem; text-align: center; }
+  .detail-tagline { font-size: 1rem; text-align: center; }
+  .genre-tags { justify-content: center; }
+  .meta-info { font-size: 0.85rem; }
+  .meta-label { min-width: 80px; }
+  .btn-watch { width: 100%; padding: 0.8rem; font-size: 1rem; }
+  
+  /* Watch Page */
+  .watch-layout {
+    display: flex;
+    flex-direction: column;
+    padding: 0.75rem;
+    
+    gap: 1rem;
+    width: 100%;
+    margin: 0;
+    position: relative;
+  }
+  .watch-left {
+    display: contents;
+  }
+  .watch-right {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    padding: 1rem;
+    background: #0a0a0a;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.05);
+    /* GPU layer — isolates repaints from the sticky player above.
+       transform creates a stacking context; z-index:1 keeps it
+       below player-container-main's sticky layer */
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    z-index: 1;
+    contain: layout style;
+  }
+  
+  .watch-title { font-size: 1.25rem; }
+  .watch-subtitle { font-size: 0.85rem; }
+  
+  .watch-controls-bar { flex-direction: column; align-items: stretch; gap: 1.5rem; }
+  .btn-next-ep { width: 100%; justify-content: center; }
+  
+  .server-header { margin-bottom: 0; cursor: pointer; } /* Accordion mode */
+  .server-selection.is-open .server-header { margin-bottom: 1.25rem; }
+  
+  /* Movie Grid */
+  .movie-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+
+  /* Docked Player Support */
+  .player-mobile-anchor {
+    width: 100%;
+    height: 0;
+    pointer-events: none;
+  }
+
+  .player-mobile-spacer {
+    width: 100%;
+    flex-shrink: 0;
+    background: #000;
+  }
+
+  .player-container-main {
+    position: relative !important;
+    z-index: 900;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+    background-color: #000;
+  }
+
+  .player-container-main.is-mobile-docked {
+    position: fixed !important;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 900;
+    border: none;
+    border-radius: 0;
+  }
+
+  /* No ::before pseudo-element here. The gap is handled by padding in .container */
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  .movie-grid { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 768px) and (max-width: 1023px) {
+  .movie-grid { grid-template-columns: repeat(4, 1fr); }
+}

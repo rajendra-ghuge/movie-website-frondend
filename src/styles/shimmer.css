@@ -1,0 +1,175 @@
+.shimmer-wrapper {
+    position: relative;
+    overflow: hidden;
+    background-color: rgba(255, 255, 255, 0.05); /* slightly lighter than dark bg */
+}
+
+.shimmer-wrapper::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+        to right,
+        transparent 0%,
+        rgba(255, 255, 255, 0.08) 50%,
+        transparent 100%
+    );
+    animation: shimmer 1.5s infinite linear;
+}
+
+@keyframes shimmer {
+    100% {
+        left: 200%;
+    }
+}
+
+/* ─────────────────────────────────────────────────────────
+ * Grid Shimmer
+ * ───────────────────────────────────────────────────────── */
+.grid-shimmer-container {
+    display: grid;
+    /* This matches exactly your movie-grid from base.css */
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem;
+    width: 100%;
+    padding: 1rem 0;
+}
+
+@media (min-width: 768px) {
+    .grid-shimmer-container {
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1.5rem;
+    }
+}
+
+.grid-shimmer-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.grid-shimmer-poster {
+    width: 100%;
+    aspect-ratio: 2/3;
+    border-radius: 8px;
+}
+
+.grid-shimmer-title {
+    width: 75%;
+    height: 1.2rem;
+    border-radius: 4px;
+}
+
+.grid-shimmer-meta {
+    width: 40%;
+    height: 0.9rem;
+    border-radius: 4px;
+}
+
+/* ─────────────────────────────────────────────────────────
+ * Detail Page Shimmer
+ * ───────────────────────────────────────────────────────── */
+.detail-shimmer-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+    gap: 2rem;
+    margin-top: 60px; /* offset for navbar */
+}
+
+@media (min-width: 1024px) {
+    .detail-shimmer-container {
+        flex-direction: row;
+        padding: 4rem 2rem;
+        gap: 4rem;
+        margin-top: 80px;
+    }
+}
+
+.detail-shimmer-left {
+    flex-shrink: 0;
+    display: flex;
+    justify-content: center;
+}
+
+.detail-shimmer-poster {
+    width: 250px;
+    aspect-ratio: 2/3;
+    border-radius: 12px;
+}
+
+@media (min-width: 1024px) {
+    .detail-shimmer-poster {
+        width: 350px;
+    }
+}
+
+.detail-shimmer-right {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.detail-shimmer-title {
+    width: 60%;
+    height: 3rem;
+    border-radius: 8px;
+}
+
+@media (max-width: 768px) {
+    .detail-shimmer-title {
+        width: 100%;
+        height: 2rem;
+    }
+}
+
+.detail-shimmer-meta-row {
+    display: flex;
+    gap: 1rem;
+}
+
+.detail-shimmer-badge {
+    width: 70px;
+    height: 1.5rem;
+    border-radius: 4px;
+}
+
+.detail-shimmer-overview {
+    width: 100%;
+    height: 7rem;
+    border-radius: 6px;
+    margin-top: 1rem;
+}
+
+.detail-shimmer-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.detail-shimmer-btn {
+    width: 140px;
+    height: 3rem;
+    border-radius: 8px;
+}
+
+.detail-shimmer-cast {
+    display: flex;
+    gap: 1rem;
+    margin-top: 3rem;
+    overflow: hidden;
+}
+
+.detail-shimmer-avatar {
+    width: 120px;
+    height: 180px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
