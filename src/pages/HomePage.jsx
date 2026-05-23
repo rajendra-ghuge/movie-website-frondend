@@ -1,6 +1,5 @@
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Flame } from 'lucide-react';
 import MovieGrid from '../components/MovieGrid';
 import Navbar from '../components/Navbar';
 import Disclaimer from '../components/Disclaimer';
@@ -24,6 +23,10 @@ const HomePage = () => {
     const latest = query.get('latest');
     const year = query.get('y') || query.get('year');
     const minRating = query.get('min_rating');
+
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, [location.search]);
 
     const pageTitle = useMemo(() => {
         if (s) return `Search results for "${s}"`;
@@ -190,7 +193,6 @@ const HomePage = () => {
 
             <div className="container">
                 <div className="section-header">
-                    <Flame size={24} color="#fdd835" fill="#fdd835" />
                     <span>{pageTitle}</span>
                 </div>
 

@@ -1,12 +1,32 @@
 import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useEffect, lazy, Suspense } from 'react';
+import { useEffect, lazy, Suspense, useRef } from 'react';
 import useTVNavigation from './hooks/useTVNavigation';
 import api from './api';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const MovieDetailPage = lazy(() => import('./pages/MovieDetailPage'));
 const WatchPage = lazy(() => import('./pages/WatchPage'));
+
+const getAnalyticsDeviceId = () => {
+  try {
+    const nativeInstallId = window.AndroidApp?.getInstallId?.();
+    if (nativeInstallId) {
+      localStorage.setItem('device_id', nativeInstallId);
+      return nativeInstallId;
+    }
+  } catch {
+    // Fall back to browser storage if the native bridge is unavailable.
+  }
+
+  let deviceId = localStorage.getItem('device_id');
+  if (!deviceId) {
+    deviceId = crypto.randomUUID?.() || Math.random().toString(36).substring(2) + Date.now().toString(36);
+    localStorage.setItem('device_id', deviceId);
+  }
+
+  return deviceId;
+};
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -20,29 +40,32 @@ const queryClient = new QueryClient({
 const RouteTracker = () => {
   const location = useLocation();
   const navigate = useNavigate();
-
-  // Route persistence is only useful on mobile (< 1024px).
-  // Desktop and TV users always start fresh on Home.
-  const isMobile = () => window.innerWidth < 1024;
+  const hasRestoredRoute = useRef(false);
 
   // On cold boot, restore last route if on mobile and within 24 hours
   useEffect(() => {
+    const isMobile = () => window.innerWidth < 1024;
+
+    if (hasRestoredRoute.current) return;
+    hasRestoredRoute.current = true;
     if (!isMobile()) return;
 
     const savedRoute = localStorage.getItem('last_route');
     const savedTime = parseInt(localStorage.getItem('last_route_time') || '0', 10);
-    const TWENTY_FOUR_HOURS = 15 * 60 * 1000;
+    const ROUTE_RESTORE_WINDOW = 15 * 60 * 1000;
 
-    if (savedRoute && savedRoute !== '/' && location.pathname === '/' && (Date.now() - savedTime) < TWENTY_FOUR_HOURS) {
-      navigate(savedRoute, { replace: true });
-    } else if (Date.now() - savedTime >= TWENTY_FOUR_HOURS) {
+    if (savedRoute && savedRoute !== '/' && location.pathname === '/' && (Date.now() - savedTime) < ROUTE_RESTORE_WINDOW) {
+      navigate(savedRoute);
+    } else if (Date.now() - savedTime >= ROUTE_RESTORE_WINDOW) {
       localStorage.removeItem('last_route');
       localStorage.removeItem('last_route_time');
     }
-  }, []);
+  }, [location.pathname, navigate]);
 
   // Save the current page as they browse (mobile only)
   useEffect(() => {
+    const isMobile = () => window.innerWidth < 1024;
+
     if (!isMobile()) return;
 
     if (location.pathname !== '/') {
@@ -64,11 +87,7 @@ function App() {
   useEffect(() => {
     // Analytics ping
     try {
-      let deviceId = localStorage.getItem('device_id');
-      if (!deviceId) {
-        deviceId = Math.random().toString(36).substring(2) + Date.now().toString(36);
-        localStorage.setItem('device_id', deviceId);
-      }
+      const deviceId = getAnalyticsDeviceId();
 
       const now = Date.now();
       const lastPingTime = parseInt(localStorage.getItem('last_ping_time') || '0', 10);
@@ -76,7 +95,7 @@ function App() {
 
       // Ping if it's been more than an hour since the last ping
       if (now - lastPingTime > ONE_HOUR) {
-        api.get(`/stats/visit?uid=${deviceId}`)
+        api.get(`/stats/visit?uid=${encodeURIComponent(deviceId)}`)
           .then(() => localStorage.setItem('last_ping_time', now.toString()))
           .catch(() => { });
       }

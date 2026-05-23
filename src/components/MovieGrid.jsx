@@ -1,7 +1,7 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { Loader2, MoreVertical, Plus } from 'lucide-react';
+import { Loader2, Plus } from 'lucide-react';
 import { movieApi } from '../api';
 import { GridShimmer } from './Shimmer';
 
@@ -59,7 +59,7 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
         staleTime: 1000 * 60 * 2, // 2 minutes — avoids refetch on back-navigation
     });
 
-    const movies = data?.pages.flatMap(page => page.results) || [];
+    const movies = useMemo(() => data?.pages.flatMap(page => page.results) || [], [data]);
 
     // ── Reset grid focus on route change ──────────────────
     useEffect(() => {
@@ -85,10 +85,30 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [movies.length]);
 
-    const handleMovieClick = (movie) => {
+    useEffect(() => {
+        if (!hasNextPage || isFetchingNextPage || isLoading || movies.length === 0) return;
+
+        const triggerIdx = Math.max(movies.length - 2, 0);
+        const triggerCard = cardRefs.current[triggerIdx];
+        if (!triggerCard) return;
+
+        const observer = new IntersectionObserver(
+            ([entry]) => {
+                if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+                    fetchNextPage();
+                }
+            },
+            { root: null, rootMargin: '0px', threshold: 0.35 }
+        );
+
+        observer.observe(triggerCard);
+        return () => observer.disconnect();
+    }, [fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, locationSearch, movies.length]);
+
+    const handleMovieClick = useCallback((movie) => {
         const mediaType = type || movie.media_type || (movie.title ? 'movie' : 'tv');
         navigate(`/${mediaType}/${movie.id}`);
-    };
+    }, [navigate, type]);
 
     // ── Focus helpers ──────────────────────────────────────
     const focusCard = useCallback((idx) => {
@@ -125,13 +145,6 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
     // ── Row detection using DOM (fixes COLS mismatch bug) ─
     // Instead of relying on a hardcoded COLS constant, we compare the
     // actual rendered top-position of adjacent cards.
-    const isSameRow = useCallback((idxA, idxB) => {
-        const elA = cardRefs.current[idxA];
-        const elB = cardRefs.current[idxB];
-        if (!elA || !elB) return false;
-        return Math.abs(getCardTop(elA) - getCardTop(elB)) < 5; // 5px tolerance
-    }, []);
-
     // Find how many columns are in the rendered grid for ↑/↓ navigation
     const getColsInRow = useCallback((startIdx) => {
         const baseTop = getCardTop(cardRefs.current[startIdx]);
@@ -229,7 +242,6 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
             } else {
                 // Jump up by the number of columns in the row above
                 const prevRowStart = getRowStart(rowStart - 1);
-                const cols = getColsInRow(prevRowStart);
                 // Keep the same column position
                 const col = focusedCardIdx - rowStart;
                 const targetIdx = Math.min(rowStart - 1, prevRowStart + col);
@@ -243,7 +255,7 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
     }, [
         focusedCardIdx, loadMoreFocused, movies,
         hasNextPage, fetchNextPage, isFetchingNextPage,
-        focusCard, focusLoadMore, isSameRow, getRowStart, getColsInRow
+        focusCard, focusLoadMore, getRowStart, getColsInRow, handleMovieClick
     ]);
 
     // ── Shared focus anchor ────────────────────────────────
@@ -300,9 +312,6 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
                                     className="movie-poster"
                                     loading="lazy"
                                 />
-                                <div className="more-icon-btn">
-                                    <MoreVertical size={18} />
-                                </div>
                             </div>
                             <div className="card-info">
                                 <h3 className="card-name">{movie.title || movie.name}</h3>
@@ -313,25 +322,24 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
                 })}
             </div>
 
-            {hasNextPage && (
+            {isFetchingNextPage && (
+                <div className="infinite-loader" aria-live="polite">
+                    <Loader2 className="animate-spin" size={22} />
+                </div>
+            )}
+
+            {hasNextPage && !isFetchingNextPage && (
                 <div className="load-more-container">
                     <button
                         ref={loadMoreRef}
                         tabIndex={isTVSize() ? -1 : 0}
                         onClick={() => fetchNextPage()}
-                        disabled={isFetchingNextPage}
                         onFocus={() => isTVSize() && setLoadMoreFocused(true)}
                         onBlur={() => setLoadMoreFocused(false)}
                         className={`btn-load-more ${loadMoreFocused && isTVSize() ? 'btn-load-more--tv-focused' : ''}`}
                     >
-                        {isFetchingNextPage ? (
-                            <Loader2 className="animate-spin" size={20} />
-                        ) : (
-                            <>
-                                <Plus size={20} />
-                                <span>Load More</span>
-                            </>
-                        )}
+                        <Plus size={20} />
+                        <span>Load More</span>
                     </button>
                 </div>
             )}
