@@ -58,11 +58,13 @@ const WatchPage = () => {
     const [downloadLinks, setDownloadLinks] = useState(null);
     const [downloadError, setDownloadError] = useState('');
     const [isSubtitleMenuOpen, setIsSubtitleMenuOpen] = useState(false);
+    const [showMobileAppDownloads, setShowMobileAppDownloads] = useState(false);
 
     const playerAnchorRef = useRef(null);
     const playerRef = useRef(null);
     const bridgeRef = useRef(null);
     const iframeRef = useRef(null);
+    const downloadRequestIdRef = useRef(null);
     const serverHeaderRef = useRef(null);
     const serverRefs = useRef([]);
     const seasonRef = useRef(null);
@@ -113,6 +115,51 @@ const WatchPage = () => {
         setDownloadError('');
         setIsSubtitleMenuOpen(false);
     }, [type, id, selectedSeason, selectedEpisode]);
+
+    useEffect(() => {
+        const androidBridge = window.AndroidApp;
+        if (!androidBridge) {
+            setShowMobileAppDownloads(false);
+            return;
+        }
+
+        let isTvApp = false;
+        try {
+            isTvApp = androidBridge.isTv?.() === true;
+        } catch {
+            isTvApp = false;
+        }
+
+        setShowMobileAppDownloads(!isTvApp);
+    }, []);
+
+    useEffect(() => {
+        const handleApkDownloadLinks = (event) => {
+            const detail = event.detail || {};
+            if (detail.requestId && detail.requestId !== downloadRequestIdRef.current) return;
+
+            setDownloadLinks(detail.data || { downloads: [], subtitles: [] });
+            setDownloadState('ready');
+            setDownloadError('');
+            setIsSubtitleMenuOpen(false);
+        };
+
+        const handleApkDownloadLinksError = (event) => {
+            const detail = event.detail || {};
+            if (detail.requestId && detail.requestId !== downloadRequestIdRef.current) return;
+
+            setDownloadLinks(null);
+            setDownloadError(detail.message || 'Download links unavailable');
+            setDownloadState('error');
+        };
+
+        window.addEventListener('apk-download-links', handleApkDownloadLinks);
+        window.addEventListener('apk-download-links-error', handleApkDownloadLinksError);
+        return () => {
+            window.removeEventListener('apk-download-links', handleApkDownloadLinks);
+            window.removeEventListener('apk-download-links-error', handleApkDownloadLinksError);
+        };
+    }, []);
 
     useEffect(() => {
         const updateMobileDock = () => {
@@ -216,14 +263,29 @@ const WatchPage = () => {
 
         setDownloadState('loading');
         setDownloadError('');
+        const payload = {
+            tmdbId: Number(id),
+            type,
+            season: type === 'tv' ? selectedSeason : null,
+            episode: type === 'tv' ? selectedEpisode : null,
+            title: detail?.title || detail?.name || ''
+        };
+
+        if (window.AndroidApp?.getDownloadLinks) {
+            const requestId = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            downloadRequestIdRef.current = requestId;
+            try {
+                window.AndroidApp.getDownloadLinks(JSON.stringify(payload), requestId);
+            } catch (error) {
+                setDownloadLinks(null);
+                setDownloadError(error?.message || 'Download links unavailable');
+                setDownloadState('error');
+            }
+            return;
+        }
+
         try {
-            const res = await movieApi.getDownloadLinks({
-                tmdbId: Number(id),
-                type,
-                season: type === 'tv' ? selectedSeason : null,
-                episode: type === 'tv' ? selectedEpisode : null,
-                title: detail?.title || detail?.name || ''
-            });
+            const res = await movieApi.getDownloadLinks(payload);
             setDownloadLinks(res.data);
             setDownloadState('ready');
             setIsSubtitleMenuOpen(false);
@@ -733,6 +795,7 @@ const WatchPage = () => {
                         )}
                     </div>
 
+                    {showMobileAppDownloads && (
                     <div className="download-box">
                         <button
                             type="button"
@@ -761,7 +824,11 @@ const WatchPage = () => {
                                     {downloads.map((item, idx) => {
                                         const resolution = item.resolution ? `${item.resolution}p` : item.quality || `Quality ${idx + 1}`;
                                         const size = formatSize(item.size);
-                                        const title = `${buildDownloadTitle(` ${resolution}`)}.mp4`;
+                                        const downloadUrl = item?.url || item?.link || item?.file || item?.downloadUrl || '';
+                                        const isMkv = /mkv/i.test(resolution) || /\.mkv(\?|$)/i.test(downloadUrl);
+                                        const title = isMkv
+                                            ? `${buildDownloadTitle()}.MKV`
+                                            : `${buildDownloadTitle(` ${resolution}`)}.mp4`;
                                         return (
                                             <div key={`${resolution}-${idx}`} className="download-link-row">
                                                 <button
@@ -829,6 +896,7 @@ const WatchPage = () => {
                             </div>
                         )}
                     </div>
+                    )}
 
                     {type === 'tv' && (
                         <div className="episode-selector-container">
