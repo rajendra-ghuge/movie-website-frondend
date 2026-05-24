@@ -31,6 +31,7 @@
   .genre-tags { justify-content: center; }
   .meta-info { font-size: 0.85rem; }
   .meta-label { min-width: 80px; }
+  .detail-actions { width: 100%; }
   .btn-watch { width: 100%; padding: 0.8rem; font-size: 1rem; }
   
   /* Watch Page */
@@ -66,6 +67,7 @@
   
   .watch-title { font-size: 1.25rem; }
   .watch-subtitle { font-size: 0.85rem; }
+  .download-link-list { grid-template-columns: 1fr; }
   
   .watch-controls-bar { flex-direction: column; align-items: stretch; gap: 1.5rem; }
   .btn-next-ep { width: 100%; justify-content: center; }

@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Play, ChevronLeft, ChevronRight, Server, ChevronDown } from 'lucide-react';
+import { Download, FileText, Loader2, Play, ChevronLeft, ChevronRight, Server, ChevronDown } from 'lucide-react';
 import { movieApi } from '../api';
 import Navbar from '../components/Navbar';
 import Disclaimer from '../components/Disclaimer';
@@ -54,6 +54,10 @@ const WatchPage = () => {
     const [playerSpacerHeight, setPlayerSpacerHeight] = useState(0);
     const [navHeight, setNavHeight] = useState(50);
     const [isIframeLoading, setIsIframeLoading] = useState(true);
+    const [downloadState, setDownloadState] = useState('idle');
+    const [downloadLinks, setDownloadLinks] = useState(null);
+    const [downloadError, setDownloadError] = useState('');
+    const [isSubtitleMenuOpen, setIsSubtitleMenuOpen] = useState(false);
 
     const playerAnchorRef = useRef(null);
     const playerRef = useRef(null);
@@ -102,6 +106,13 @@ const WatchPage = () => {
     useEffect(() => {
         setIsIframeLoading(true);
     }, [selectedServer, id, selectedSeason, selectedEpisode]);
+
+    useEffect(() => {
+        setDownloadState('idle');
+        setDownloadLinks(null);
+        setDownloadError('');
+        setIsSubtitleMenuOpen(false);
+    }, [type, id, selectedSeason, selectedEpisode]);
 
     useEffect(() => {
         const updateMobileDock = () => {
@@ -193,6 +204,63 @@ const WatchPage = () => {
             }
         }
     }, [type, selectedEpisode, seasonData, detail, selectedSeason]);
+
+    const buildDownloadTitle = useCallback((suffix = '') => {
+        const baseTitle = detail?.title || detail?.name || `tmdb-${id}`;
+        const episodePart = type === 'tv' ? ` S${selectedSeason}E${selectedEpisode}` : '';
+        return `${baseTitle}${episodePart}${suffix}`.trim();
+    }, [detail, id, selectedEpisode, selectedSeason, type]);
+
+    const handleGetDownloadLinks = useCallback(async () => {
+        if (type === 'tv' && !selectedEpisode) return;
+
+        setDownloadState('loading');
+        setDownloadError('');
+        try {
+            const res = await movieApi.getDownloadLinks({
+                tmdbId: Number(id),
+                type,
+                season: type === 'tv' ? selectedSeason : null,
+                episode: type === 'tv' ? selectedEpisode : null,
+                title: detail?.title || detail?.name || ''
+            });
+            setDownloadLinks(res.data);
+            setDownloadState('ready');
+            setIsSubtitleMenuOpen(false);
+        } catch (error) {
+            setDownloadLinks(null);
+            setDownloadError(error.response?.data?.detail || 'Download links unavailable');
+            setDownloadState('error');
+        }
+    }, [detail, id, selectedEpisode, selectedSeason, type]);
+
+    const startDownload = useCallback((item, fallbackTitle, proxy = 'primary', kind = 'video') => {
+        const url = item?.url || item?.link || item?.file || item?.downloadUrl;
+        if (!url) return;
+
+        if (window.AndroidApp?.downloadFile) {
+            window.AndroidApp.downloadFile(url, fallbackTitle, proxy, kind);
+            return;
+        }
+
+        if (window.AndroidApp?.downloadMovie) {
+            window.AndroidApp.downloadMovie(url, fallbackTitle, proxy, kind);
+            return;
+        }
+
+        const urls = movieApi.getDownloadFileUrls(url, fallbackTitle);
+        window.location.href = urls[proxy] || urls.primary;
+    }, []);
+
+    const formatSize = (size) => {
+        if (typeof size === 'string' && /[a-z]/i.test(size)) return size;
+        const bytes = Number(size);
+        if (!Number.isFinite(bytes) || bytes <= 0) return '';
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
+
+    const downloads = downloadLinks?.downloads || [];
+    const subtitles = downloadLinks?.subtitles || [];
 
     const hasNextEpisode = useMemo(() => {
         if (type !== 'tv') return false;
@@ -662,6 +730,103 @@ const WatchPage = () => {
                         <h1 className="watch-title">{title}</h1>
                         {type === 'tv' && selectedEpisode && (
                             <p className="watch-subtitle">S{selectedSeason} E{selectedEpisode}</p>
+                        )}
+                    </div>
+
+                    <div className="download-box">
+                        <button
+                            type="button"
+                            className="download-fetch-btn"
+                            disabled={downloadState === 'loading' || (type === 'tv' && !selectedEpisode)}
+                            onClick={handleGetDownloadLinks}
+                        >
+                            {downloadState === 'loading' ? (
+                                <Loader2 className="animate-spin" size={18} />
+                            ) : (
+                                <Download size={18} />
+                            )}
+                            <span>{downloadState === 'ready' ? 'Refresh Downloads' : 'Get Downloads'}</span>
+                        </button>
+
+                        {downloadError && <p className="download-error">{downloadError}</p>}
+
+                        {downloadState === 'ready' && downloads.length === 0 && subtitles.length === 0 && (
+                            <p className="download-empty">No download links found.</p>
+                        )}
+
+                        {downloads.length > 0 && (
+                            <div className="download-link-group">
+                                <h3>Quality</h3>
+                                <div className="download-link-list">
+                                    {downloads.map((item, idx) => {
+                                        const resolution = item.resolution ? `${item.resolution}p` : item.quality || `Quality ${idx + 1}`;
+                                        const size = formatSize(item.size);
+                                        const title = `${buildDownloadTitle(` ${resolution}`)}.mp4`;
+                                        return (
+                                            <div key={`${resolution}-${idx}`} className="download-link-row">
+                                                <button
+                                                    type="button"
+                                                    className="download-link-btn"
+                                                    onClick={() => startDownload(item, title, 'primary', 'video')}
+                                                >
+                                                    <Download size={16} />
+                                                    <span>{resolution}</span>
+                                                    {size && <small>{size}</small>}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    className="download-backup-btn"
+                                                    onClick={() => startDownload(item, title, 'backup', 'video')}
+                                                >
+                                                    Backup
+                                                </button>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        )}
+
+                        {subtitles.length > 0 && (
+                            <div className="download-link-group">
+                                <button
+                                    type="button"
+                                    className="subtitle-menu-toggle"
+                                    onClick={() => setIsSubtitleMenuOpen(prev => !prev)}
+                                    aria-expanded={isSubtitleMenuOpen}
+                                >
+                                    <span>Subtitles</span>
+                                    <small>{subtitles.length}</small>
+                                    <ChevronDown size={16} className={isSubtitleMenuOpen ? 'rotate-180' : ''} />
+                                </button>
+                                {isSubtitleMenuOpen && (
+                                    <div className="download-link-list subtitle-link-list">
+                                        {subtitles.map((item, idx) => {
+                                            const label = item.lanName || item.label || item.language || item.lang || item.lan || item.name || `Subtitle ${idx + 1}`;
+                                            const title = `${buildDownloadTitle(` ${label} subtitle`)}.srt`;
+                                            return (
+                                                <div key={`${label}-${idx}`} className="download-link-row">
+                                                    <button
+                                                        type="button"
+                                                        className="download-link-btn"
+                                                        onClick={() => startDownload(item, title, 'primary', 'subtitle')}
+                                                    >
+                                                        <FileText size={16} />
+                                                        <span>{label}</span>
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="download-backup-btn"
+                                                        onClick={() => startDownload(item, title, 'backup', 'subtitle')}
+                                                    >
+                                                        Backup
+                                                    </button>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
                         )}
                     </div>
 

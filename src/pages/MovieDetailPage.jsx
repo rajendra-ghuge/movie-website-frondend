@@ -1,7 +1,7 @@
-import { useNavigate, useParams, Link, useLocation } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Loader2, Play } from 'lucide-react';
+import { Play } from 'lucide-react';
 import { movieApi } from '../api';
 import Navbar from '../components/Navbar';
 import Disclaimer from '../components/Disclaimer';
@@ -18,7 +18,6 @@ const MovieDetailPage = () => {
     const [castFocusIdx, setCastFocusIdx] = useState(0);
     const [kwFocusIdx, setKwFocusIdx] = useState(0);
     const [isInteractingWithTrailer, setIsInteractingWithTrailer] = useState(false);
-
     const watchBtnRef = useRef(null);
     const castRefs = useRef([]);
     const kwRefs = useRef([]);
@@ -202,7 +201,7 @@ const MovieDetailPage = () => {
             if (key === 'ArrowUp') { e.preventDefault(); navigateUpFromTrailer(); }
             else if (key === 'Enter') { e.preventDefault(); setIsInteractingWithTrailer(true); }
         }
-    }, [activeSection, castFocusIdx, kwFocusIdx, isInteractingWithTrailer, focusSection, focusNavbar, navigateUpFromTrailer, navigate, type, id]);
+    }, [activeSection, castFocusIdx, kwFocusIdx, isInteractingWithTrailer, focusSection, focusNavbar, handleBackAction, navigateUpFromTrailer, navigate, type, id]);
 
     if (isLoading) return (
         <div className="page-wrapper">
@@ -215,7 +214,6 @@ const MovieDetailPage = () => {
     const trailer = movie.videos?.results?.find(v => v.type === 'Trailer') || movie.videos?.results?.[0];
     const castList = movie.credits?.cast?.slice(0, 8) || [];
     const keywordsList = (type === 'movie' ? keywordsData?.keywords : keywordsData?.results)?.slice(0, 15) || [];
-
     // Compute once per render — avoids calling window.innerWidth + UA check ~8 times in JSX.
     const tvMode = isTVSize();
 

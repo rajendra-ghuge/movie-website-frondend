@@ -212,6 +212,168 @@
   margin-bottom: 1.5rem;
 }
 
+.download-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+
+.download-fetch-btn,
+.download-link-btn,
+.download-backup-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 38px;
+  border-radius: 4px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.download-fetch-btn {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--accent-yellow);
+  background: var(--accent-yellow);
+  color: #000;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.download-fetch-btn:hover:not(:disabled),
+.download-link-btn:hover,
+.download-backup-btn:hover {
+  transform: translateY(-1px);
+}
+
+.download-fetch-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.download-error,
+.download-empty {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.download-error {
+  color: #ff7b7b;
+}
+
+.download-empty {
+  color: var(--text-gray);
+}
+
+.download-link-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.download-link-group h3 {
+  margin: 0;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.subtitle-menu-toggle {
+  width: 100%;
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #eee;
+  font-size: 0.8rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.subtitle-menu-toggle:hover {
+  border-color: var(--accent-yellow);
+  background: rgba(253, 216, 53, 0.1);
+}
+
+.subtitle-menu-toggle small {
+  margin-left: auto;
+  color: var(--accent-yellow);
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.download-link-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+}
+
+.subtitle-link-list {
+  max-height: 230px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.download-link-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.45rem;
+}
+
+.download-link-btn {
+  min-width: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: #eee;
+  font-size: 0.78rem;
+  flex-wrap: wrap;
+  row-gap: 0.15rem;
+}
+
+.download-backup-btn {
+  padding: 0.55rem 0.65rem;
+  border: 1px solid rgba(253, 216, 53, 0.45);
+  background: rgba(253, 216, 53, 0.08);
+  color: var(--accent-yellow);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.download-link-btn:hover,
+.download-backup-btn:hover {
+  border-color: var(--accent-yellow);
+  background: rgba(253, 216, 53, 0.1);
+}
+
+.download-link-btn span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.download-link-btn small {
+  color: #aaa;
+  font-size: 0.68rem;
+  font-weight: 700;
+  width: 100%;
+  text-align: center;
+}
+
 .episode-selector-container {
   display: flex;
   flex-direction: column;
