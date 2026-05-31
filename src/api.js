@@ -144,7 +144,7 @@ export const movieApi = {
                 8: "https://www.vidking.net/embed/movie/{id}?autoplay=1",
                 9: "https://vidup.to/movie/{id}?autoPlay=true",
                 10: "https://vidsrc.wtf/api/3/movie/?id={id}&autoplay=1",
-                11: "https://peachify.top/embed/movie/{id}?dub=Hindi",
+                11: "https://peachify.top/embed/movie/{id}?dub=Hindi&sub=English",
                 12: "https://111movies.com/movie/{id}",
                 13: "https://player.vidzee.wtf/embed/movie/{id}?sr=hindi&server=7&autoplay=true?muted=true"
             },
@@ -159,7 +159,7 @@ export const movieApi = {
                 8: "https://www.vidking.net/embed/tv/{id}-{slug}/{s}/{e}?autoplay=1",
                 9: "https://vidup.to/tv/{id}/{s}/{e}?autoPlay=true",
                 10: "https://vidsrc.wtf/api/3/tv/?id={id}&s={s}&e={e}&autoplay=1",
-                11: "https://peachify.top/embed/tv/{id}/{s}/{e}?dub=Hindi",
+                11: "https://peachify.top/embed/tv/{id}/{s}/{e}?dub=Hindi&sub=English",
                 12: "https://111movies.com/tv/{id}/{s}/{e}",
                 13:"https://player.vidzee.wtf/embed/tv/{id}/{s}/{e}?sr=hindi&server=7&autoplay=true&muted=true"
             }
