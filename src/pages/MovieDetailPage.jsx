@@ -1,13 +1,17 @@
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Play } from 'lucide-react';
+import { Download, Play } from 'lucide-react';
 import { movieApi } from '../api';
 import Navbar from '../components/Navbar';
 import Disclaimer from '../components/Disclaimer';
 import { DetailShimmer } from '../components/Shimmer';
 
-const isTVSize = () => typeof window !== 'undefined' && window.innerWidth >= 1024;
+const isTV = () => {
+    if (typeof window === 'undefined') return false;
+    const isTVUA = /TV|LargeScreen|AndroidTV|SmartTV/i.test(navigator.userAgent);
+    return window.innerWidth >= 1024 || isTVUA;
+};
 
 const MovieDetailPage = () => {
     const { type = 'movie', id } = useParams();
@@ -16,10 +20,12 @@ const MovieDetailPage = () => {
     // TV navigation state
     const [activeSection, setActiveSection] = useState(null);
     const [castFocusIdx, setCastFocusIdx] = useState(0);
+    const [genreFocusIdx, setGenreFocusIdx] = useState(0);
     const [kwFocusIdx, setKwFocusIdx] = useState(0);
     const [isInteractingWithTrailer, setIsInteractingWithTrailer] = useState(false);
     const watchBtnRef = useRef(null);
     const castRefs = useRef([]);
+    const genreRefs = useRef([]);
     const kwRefs = useRef([]);
     const trailerBridgeRef = useRef(null);
     const trailerIframeRef = useRef(null);
@@ -45,11 +51,20 @@ const MovieDetailPage = () => {
         }
     });
 
+    const { data: genresData } = useQuery({
+        queryKey: ['genres', type],
+        queryFn: async () => {
+            const res = await movieApi.getGenres(type);
+            return res.data;
+        }
+    });
+
     useEffect(() => {
         // Scroll to top on navigation — moved out of queryFn to avoid running on background refetches.
         window.scrollTo(0, 0);
         setActiveSection(null);
         setCastFocusIdx(0);
+        setGenreFocusIdx(0);
         setKwFocusIdx(0);
         setIsInteractingWithTrailer(false);
     }, [type, id]);
@@ -60,6 +75,7 @@ const MovieDetailPage = () => {
             let el = null;
             if (section === 'watch') el = watchBtnRef.current;
             else if (section === 'cast') { setCastFocusIdx(idx); el = castRefs.current[idx]; }
+            else if (section === 'genres') { setGenreFocusIdx(idx); el = genreRefs.current[idx]; }
             else if (section === 'keywords') { setKwFocusIdx(idx); el = kwRefs.current[idx]; }
             else if (section === 'trailer') el = trailerBridgeRef.current;
 
@@ -82,6 +98,7 @@ const MovieDetailPage = () => {
 
     const navigateUpFromTrailer = useCallback(() => {
         if (kwRefs.current.some(Boolean)) focusSection('keywords', 0);
+        else if (genreRefs.current.some(Boolean)) focusSection('genres', 0);
         else if (castRefs.current.some(Boolean)) focusSection('cast', 0);
         else focusSection('watch');
     }, [focusSection]);
@@ -136,7 +153,7 @@ const MovieDetailPage = () => {
     }, [isInteractingWithTrailer]);
 
     const handlePageKeyDown = useCallback((e) => {
-        if (!isTVSize()) return;
+        if (!isTV()) return;
         const key = e.key;
 
         // Universal Back Support
@@ -154,6 +171,7 @@ const MovieDetailPage = () => {
         }
 
         const castCount = castRefs.current.filter(Boolean).length;
+        const genreCount = genreRefs.current.filter(Boolean).length;
         const kwCount = kwRefs.current.filter(Boolean).length;
 
         if (activeSection === null) {
@@ -165,6 +183,7 @@ const MovieDetailPage = () => {
             if (key === 'ArrowDown') {
                 e.preventDefault();
                 if (castCount > 0) focusSection('cast', 0);
+                else if (genreCount > 0) focusSection('genres', 0);
                 else if (kwCount > 0) focusSection('keywords', 0);
                 else focusSection('trailer');
             } else if (key === 'ArrowUp') { e.preventDefault(); focusNavbar(); }
@@ -180,9 +199,23 @@ const MovieDetailPage = () => {
                 const n = (castFocusIdx + 1) % castCount;
                 setCastFocusIdx(n); castRefs.current[n]?.focus();
             }
-            else if (key === 'ArrowDown') { e.preventDefault(); if (kwCount > 0) focusSection('keywords', 0); else focusSection('trailer'); }
+            else if (key === 'ArrowDown') { e.preventDefault(); if (genreCount > 0) focusSection('genres', 0); else if (kwCount > 0) focusSection('keywords', 0); else focusSection('trailer'); }
             else if (key === 'ArrowUp') { e.preventDefault(); focusSection('watch'); }
             else if (key === 'Enter') { e.preventDefault(); castRefs.current[castFocusIdx]?.click(); }
+        } else if (activeSection === 'genres') {
+            if (key === 'ArrowLeft') {
+                e.preventDefault();
+                const n = genreFocusIdx > 0 ? genreFocusIdx - 1 : genreCount - 1;
+                setGenreFocusIdx(n); genreRefs.current[n]?.focus();
+            }
+            else if (key === 'ArrowRight') {
+                e.preventDefault();
+                const n = (genreFocusIdx + 1) % genreCount;
+                setGenreFocusIdx(n); genreRefs.current[n]?.focus();
+            }
+            else if (key === 'ArrowUp') { e.preventDefault(); if (castCount > 0) focusSection('cast', 0); else focusSection('watch'); }
+            else if (key === 'ArrowDown') { e.preventDefault(); if (kwCount > 0) focusSection('keywords', 0); else focusSection('trailer'); }
+            else if (key === 'Enter') { e.preventDefault(); genreRefs.current[genreFocusIdx]?.click(); }
         } else if (activeSection === 'keywords') {
             if (key === 'ArrowLeft') {
                 e.preventDefault();
@@ -194,14 +227,14 @@ const MovieDetailPage = () => {
                 const n = (kwFocusIdx + 1) % kwCount;
                 setKwFocusIdx(n); kwRefs.current[n]?.focus();
             }
-            else if (key === 'ArrowUp') { e.preventDefault(); if (castCount > 0) focusSection('cast', 0); else focusSection('watch'); }
+            else if (key === 'ArrowUp') { e.preventDefault(); if (genreCount > 0) focusSection('genres', 0); else if (castCount > 0) focusSection('cast', 0); else focusSection('watch'); }
             else if (key === 'ArrowDown') { e.preventDefault(); focusSection('trailer'); }
             else if (key === 'Enter') { e.preventDefault(); kwRefs.current[kwFocusIdx]?.click(); }
         } else if (activeSection === 'trailer') {
             if (key === 'ArrowUp') { e.preventDefault(); navigateUpFromTrailer(); }
             else if (key === 'Enter') { e.preventDefault(); setIsInteractingWithTrailer(true); }
         }
-    }, [activeSection, castFocusIdx, kwFocusIdx, isInteractingWithTrailer, focusSection, focusNavbar, handleBackAction, navigateUpFromTrailer, navigate, type, id]);
+    }, [activeSection, castFocusIdx, genreFocusIdx, kwFocusIdx, isInteractingWithTrailer, focusSection, focusNavbar, handleBackAction, navigateUpFromTrailer, navigate, type, id]);
 
     if (isLoading) return (
         <div className="page-wrapper">
@@ -212,10 +245,14 @@ const MovieDetailPage = () => {
     if (error || !movie) return <div className="loader-main">Error loading content.</div>;
 
     const trailer = movie.videos?.results?.find(v => v.type === 'Trailer') || movie.videos?.results?.[0];
+    const title = movie.title || movie.name;
+    const releaseYear = (movie.release_date || movie.first_air_date || '').slice(0, 4);
     const castList = movie.credits?.cast?.slice(0, 8) || [];
+    const genreList = (movie.genres?.length ? movie.genres : (genresData?.genres || []).filter(genre => movie.genre_ids?.includes(genre.id))).slice(0, 12);
     const keywordsList = (type === 'movie' ? keywordsData?.keywords : keywordsData?.results)?.slice(0, 15) || [];
-    // Compute once per render — avoids calling window.innerWidth + UA check ~8 times in JSX.
-    const tvMode = isTVSize();
+    const tvMode = isTV();
+    const isApk = typeof window !== 'undefined' && !!window.AndroidApp;
+    const showDownloads = isApk && !tvMode;
 
     return (
         <div className="page-wrapper" onKeyDown={handlePageKeyDown}>
@@ -224,9 +261,12 @@ const MovieDetailPage = () => {
             <div className="detail-page">
                 <div className="detail-left"><img src={movieApi.getImageUrl(movie.poster_path, 'w500')} alt="" className="detail-poster-large" /></div>
                 <div className="detail-right">
-                    <h1 className="detail-title-large">{movie.title || movie.name}</h1>
+                    <h1 className="detail-title-large">{title}</h1>
                     <div className="detail-actions">
                         <Link ref={watchBtnRef} to={`/watch/${type}/${id}`} tabIndex={-1} onFocus={() => tvMode && setActiveSection('watch')} className={`btn-watch${activeSection === 'watch' ? ' btn-watch--tv-focused' : ''}`}><Play size={20} fill="currentColor" /> Watch Now</Link>
+                        {showDownloads && (
+                            <Link to={`/downloads?s=${encodeURIComponent(title)}&type=${encodeURIComponent(type)}${releaseYear ? `&year=${encodeURIComponent(releaseYear)}` : ''}&id=${id}`} className="btn-download-detail"><Download size={20} /> Download</Link>
+                        )}
                     </div>
                     <p className="detail-overview">{movie.overview}</p>
                     <div className="meta-info">
@@ -236,6 +276,13 @@ const MovieDetailPage = () => {
                             ))}</div>
                         </div>
                     </div>
+                    {genreList.length > 0 && (
+                        <div className="keyword-row"><span className="meta-label">Genres:</span>
+                            <div className="keyword-tags">{genreList.map((genre, idx) => (
+                                <Link key={genre.id} ref={el => { genreRefs.current[idx] = el; }} to={`/?type=${type}&genre=${genre.id}&cat=${type === 'tv' ? 'tv' : 'movie'}`} tabIndex={-1} onFocus={() => { if (tvMode) { setActiveSection('genres'); setGenreFocusIdx(idx); } }} className={`keyword-tag${activeSection === 'genres' && genreFocusIdx === idx ? ' keyword-tag--tv-focused' : ''}`}>{genre.name}</Link>
+                            ))}</div>
+                        </div>
+                    )}
                     <div className="keyword-row"><span className="meta-label">Keywords:</span>
                         <div className="keyword-tags">{keywordsList.map((kw, idx) => (
                             <Link key={kw.id} ref={el => { kwRefs.current[idx] = el; }} to={`/?k=${kw.id}&kn=${encodeURIComponent(kw.name)}`} tabIndex={-1} onFocus={() => { if (tvMode) { setActiveSection('keywords'); setKwFocusIdx(idx); } }} className={`keyword-tag${activeSection === 'keywords' && kwFocusIdx === idx ? ' keyword-tag--tv-focused' : ''}`}>{kw.name}</Link>

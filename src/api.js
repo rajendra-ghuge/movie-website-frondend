@@ -1,12 +1,23 @@
 import axios from 'axios';
 
+const USE_DYNAMIC_API_URL = import.meta.env.VITE_USE_DYNAMIC_API_URL !== 'false';
+
 // 1. Get initial URL from localStorage or environment variable (ZERO DELAY)
-const INITIAL_API_URL = localStorage.getItem('dynamic_api_url') || import.meta.env.VITE_API_URL;
+const INITIAL_API_URL = USE_DYNAMIC_API_URL
+    ? localStorage.getItem('dynamic_api_url') || import.meta.env.VITE_API_URL
+    : import.meta.env.VITE_API_URL;
 
 const api = axios.create({
     baseURL: INITIAL_API_URL,
     timeout: 15000,
 });
+
+const getApiRootUrl = () => {
+    const baseUrl = USE_DYNAMIC_API_URL
+        ? api.defaults.baseURL
+        : import.meta.env.VITE_API_URL;
+    return baseUrl.replace(/\/proxy\/?$/, '');
+};
 
 const isValidServerConfig = (config) => {
     return Boolean(
@@ -20,6 +31,8 @@ const isValidServerConfig = (config) => {
 // 2. Background Sync: Check Gist invisibly and update if needed
 export const syncDynamicConfig = async () => {
     try {
+        if (!USE_DYNAMIC_API_URL) return;
+
         const configUrl = import.meta.env.VITE_SERVER_CONFIG_URL;
         if (!configUrl) return;
 
@@ -64,10 +77,12 @@ api.interceptors.response.use(
 
 export const movieApi = {
     getMovie: (id, params = {}) => api.get(`/movie/${id}`, { params }),
+    getNowPlaying: (params = {}) => api.get('/movie/now_playing', { params }),
     getVideos: (id) => api.get(`/movie/${id}/videos`),
     getCredits: (id) => api.get(`/movie/${id}/credits`),
     getSimilar: (id, params = {}) => api.get(`/movie/${id}/similar`, { params }),
     getKeywords: (id, type = 'movie') => api.get(`/${type}/${id}/keywords`),
+    getGenres: (type = 'movie', params = {}) => api.get(`/genre/${type}/list`, { params }),
     getMoviesByKeyword: (id, params = {}) => api.get(`/keyword/${id}/movies`, { params }),
     getRecommendations: (id, params = {}) => api.get(`/movie/${id}/recommendations`, { params }),
     getTvRecommendations: (id, params = {}) => api.get(`/tv/${id}/recommendations`, { params }),
@@ -79,6 +94,9 @@ export const movieApi = {
     getMoviesByCast: (castId, params = {}) => api.get('/discover/both', { params: { ...params, with_cast: castId } }),
     getTvDetail: (id, params = {}) => api.get(`/tv/${id}`, { params }),
     getTvSeason: (id, season, params = {}) => api.get(`/tv/${id}/season/${season}`, { params }),
+    searchAoneroom: (keyword, params = {}) => axios.get(`${getApiRootUrl()}/aoneroom/search`, { params: { keyword, ...params } }),
+    getAoneroomDetail: (detailPath) => axios.get(`${getApiRootUrl()}/aoneroom/detail`, { params: { detailPath } }),
+    getAoneroomDownload: ({ subjectId, detailPath, se = 0, ep = 0 }) => axios.get(`${getApiRootUrl()}/aoneroom/download`, { params: { subjectId, detailPath, se, ep } }),
     getDownloadLinks: (payload) => api.post('/downloads/links', payload),
     getDownloadFileUrl: (url, title = 'video', proxyBaseUrl) => {
         const workerBaseUrl = proxyBaseUrl || import.meta.env.VITE_DOWNLOAD_WORKER_BASE_URL || 'https://dl.gemlelispe.workers.dev';
@@ -112,7 +130,8 @@ export const movieApi = {
                 { id: 9, label: 'S9' },
                 { id: 10, label: 'S10' },
                 { id: 11, label: 'S11' },
-                { id: 12, label: 'S12' }
+                { id: 12, label: 'S12' },
+                { id: 13, label: 'S13' }
             ],
             movie: {
                 5: "https://vidlux.site/embed/movie/{id}",
@@ -125,8 +144,9 @@ export const movieApi = {
                 8: "https://www.vidking.net/embed/movie/{id}?autoplay=1",
                 9: "https://vidup.to/movie/{id}?autoPlay=true",
                 10: "https://vidsrc.wtf/api/3/movie/?id={id}&autoplay=1",
-                11: "https://peachify.top/embed/movie/{id}",
-                12: "https://111movies.com/movie/{id}"
+                11: "https://peachify.top/embed/movie/{id}?dub=Hindi",
+                12: "https://111movies.com/movie/{id}",
+                13: "https://player.vidzee.wtf/embed/movie/{id}?sr=hindi&server=7&autoplay=true?muted=true"
             },
             tv: {
                 5: "https://vidlux.site/embed/tv/{id}/{s}/{e}",
@@ -139,8 +159,9 @@ export const movieApi = {
                 8: "https://www.vidking.net/embed/tv/{id}-{slug}/{s}/{e}?autoplay=1",
                 9: "https://vidup.to/tv/{id}/{s}/{e}?autoPlay=true",
                 10: "https://vidsrc.wtf/api/3/tv/?id={id}&s={s}&e={e}&autoplay=1",
-                11: "https://peachify.top/embed/tv/{id}/{s}/{e}",
-                12: "https://111movies.com/tv/{id}/{s}/{e}"
+                11: "https://peachify.top/embed/tv/{id}/{s}/{e}?dub=Hindi",
+                12: "https://111movies.com/tv/{id}/{s}/{e}",
+                13:"https://player.vidzee.wtf/embed/tv/{id}/{s}/{e}?sr=hindi&server=7&autoplay=true&muted=true"
             }
         };
 

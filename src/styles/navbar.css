@@ -44,6 +44,8 @@
 .mobile-menu-header { display: flex; justify-content: space-between; align-items: center; }
 .close-menu-btn { background: transparent; border: none; color: white; cursor: pointer; }
 .mobile-nav-links { display: flex; flex-direction: column; gap: 0.5rem; overflow-y: auto; padding-bottom: 2rem; }
+.mobile-nav-links { scrollbar-width: none; -ms-overflow-style: none; }
+.mobile-nav-links::-webkit-scrollbar { display: none; }
 .mobile-nav-item { border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
 .mobile-nav-link-main { display: flex; justify-content: space-between; align-items: center; padding: 1rem 0; font-size: 1.1rem; font-weight: 700; color: #eee; cursor: pointer; }
 .mobile-nav-link-main.active { color: var(--accent-yellow); }

@@ -7,6 +7,7 @@ import api from './api';
 const HomePage = lazy(() => import('./pages/HomePage'));
 const MovieDetailPage = lazy(() => import('./pages/MovieDetailPage'));
 const WatchPage = lazy(() => import('./pages/WatchPage'));
+const DownloadDetailsPage = lazy(() => import('./pages/DownloadDetailsPage'));
 
 const getAnalyticsDeviceId = () => {
   try {
@@ -109,6 +110,7 @@ function App() {
     const preloadTimer = setTimeout(() => {
       import('./pages/MovieDetailPage');
       import('./pages/WatchPage');
+      import('./pages/DownloadDetailsPage');
     }, 2000);
 
     return () => clearTimeout(preloadTimer);
@@ -124,6 +126,7 @@ function App() {
             <Route path="/:type/:id" element={<MovieDetailPage />} />
             <Route path="/watch/:type/:id" element={<WatchPage />} />
             <Route path="/watch/:type/:id/:season/:episode" element={<WatchPage />} />
+            <Route path="/downloads" element={<DownloadDetailsPage />} />
           </Routes>
         </Suspense>
       </BrowserRouter>

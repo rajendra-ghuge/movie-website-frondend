@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, X, ChevronDown, Menu, Dice6 } from 'lucide-react';
+import { Search, X, ChevronDown, Menu } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 /* ─────────────────────────────────────────────────────────
@@ -97,9 +97,10 @@ const Navbar = () => {
     const query = new URLSearchParams(location.search);
     const currentCat = query.get('cat') || 'home';
 
+    const tvMode = isTV();
+
     const navLinks = [
-        { name: 'Home', path: '/', cat: 'home' },
-        { name: 'Movies', path: '/?type=movie&cat=movie', cat: 'movie' },
+        { name: 'Trending', path: '/?type=movie&cat=movie', cat: 'movie' },
         {
             name: 'Latest', cat: 'latest',
             dropdown: [
@@ -116,7 +117,8 @@ const Navbar = () => {
                 { name: 'Top TV Shows', path: '/?type=tv&cat=top' },
                 { name: 'Top Indian Movies', path: '/?type=movie&lang=hi&cat=top' },
                 { name: 'Top Hollywood Movies', path: '/?type=movie&lang=en&cat=top' },
-                { name: 'Top Hollywood Shows', path: '/?type=tv&lang=en&cat=top' }
+                { name: 'Top Hollywood Shows', path: '/?type=tv&lang=en&cat=top' },
+                { name: 'Top Rated K-Dramas', path: '/?type=tv&lang=ko&cat=top' }
             ]
         },
         {
@@ -173,11 +175,11 @@ const Navbar = () => {
             dropdown: [
                 { name: 'Netflix', path: '/?provider=8&cat=ott' },
                 { name: 'Prime Video', path: '/?provider=119&cat=ott' },
-                { name: 'Disney+ Hotstar', path: '/?provider=122&cat=ott' },
+                { name: 'JioHotstar', path: '/?provider=2336&cat=ott' },
                 { name: 'Zee5', path: '/?provider=232&cat=ott' },
-                { name: 'SonyLIV', path: '/?provider=237&cat=ott' },
-                { name: 'JioCinema', path: '/?provider=220&cat=ott' }
+                { name: 'SonyLIV', path: '/?provider=237&cat=ott' }
             ]
+            
         },
         {
             name: 'Language', cat: 'lang',
@@ -192,14 +194,6 @@ const Navbar = () => {
                 { name: 'Punjabi', path: '/?lang=pa&cat=lang' },
                 { name: 'Gujarati', path: '/?lang=gu&cat=lang' },
                 { name: 'English', path: '/?lang=en&cat=lang' }
-            ]
-        },
-        {
-            name: '', cat: 'dice',
-            icon: <Dice6 size={18} className="mr-1" title="Random" />,
-            dropdown: [
-                { name: 'Indian (Random)', action: 'indian_dice' },
-                { name: 'Hollywood (Random)', action: 'hollywood_dice' }
             ]
         }
     ];
@@ -241,7 +235,7 @@ const Navbar = () => {
         // Find which nav item matches the new route
         const matchedIdx = navLinks.findIndex(link => {
             if (link.cat === currentCat) return true;
-            if (link.cat === 'home' && location.pathname === '/' && !location.search) return true;
+            if (link.path === location.pathname) return true;
             return false;
         });
 
@@ -275,48 +269,13 @@ const Navbar = () => {
     }, [focusedNavIdx, navLinks.length]);
 
     // ── Dice helpers (unchanged) ───────────────────────────
-    const generateRandomDiceParams = (type) => {
-        const genres = [28, 12, 16, 35, 80, 18, 27, 10749, 878, 53];
-        const indianLangs = ['hi', 'hi', 'hi', 'hi', 'mr', 'ta', 'te', 'ml', 'kn', 'bn', 'gu', 'pa'];
-        const sorts = ['popularity.desc', 'primary_release_date.desc', 'vote_average.desc'];
-        const randomSort = sorts[Math.floor(Math.random() * sorts.length)];
-        let lang = 'en', pageLimit = 20;
-        let genreCount = Math.random() > 0.6 ? 2 : 1;
-        let minRatingVal = (Math.random() * 2 + 5).toFixed(1);
-        if (type === 'indian') {
-            lang = indianLangs[Math.floor(Math.random() * indianLangs.length)];
-            if (lang !== 'hi') { pageLimit = 5; genreCount = 1; minRatingVal = 0; }
-        }
-        const selectedGenres = [];
-        for (let i = 0; i < genreCount; i++) {
-            const g = genres[Math.floor(Math.random() * genres.length)];
-            if (!selectedGenres.includes(g)) selectedGenres.push(g);
-        }
-        const randomPage = Math.floor(Math.random() * pageLimit) + 1;
-        const params = new URLSearchParams();
-        params.set('cat', 'dice'); params.set('lang', lang);
-        params.set('genre', selectedGenres.join(',')); params.set('sort', randomSort);
-        params.set('page', randomPage);
-        if (minRatingVal > 0) params.set('min_rating', minRatingVal);
-        params.set('r', Math.random().toString(36).substring(7));
-        return params.toString();
-    };
-
-    const handleDiceAction = (action) => {
-        setIsMenuOpen(false);
-        if (action === 'indian_dice') navigate(`/?${generateRandomDiceParams('indian')}`);
-        else if (action === 'hollywood_dice') navigate(`/?${generateRandomDiceParams('hollywood')}`);
-    };
-
     // ── Dropdown selection ─────────────────────────────────
     const handleDropdownSelect = (item) => {
-        if (item.action) {
-            handleDiceAction(item.action);
-        } else if (item.path) {
+        if (item.path) {
             navigate(item.path);
         }
         setActiveDropdown(null);
-        // After selecting a dropdown item, move the TV focus indicator back to Home (index 0)
+        // After selecting a dropdown item, move the TV focus indicator back to the first nav item.
         // so only one yellow underline is ever shown at a time.
         if (isTV()) {
             setFocusedNavIdx(0);
@@ -339,15 +298,19 @@ const Navbar = () => {
             e.preventDefault();
             e.stopPropagation();
             if (searchQuery.trim()) {
-                navigate(`/?s=${encodeURIComponent(searchQuery.trim())}&cat=search`);
+                if (location.pathname === '/downloads') {
+                    // Contextual search: hit Aoneroom search when on Downloads page
+                    navigate(`/downloads?s=${encodeURIComponent(searchQuery.trim())}`);
+                } else {
+                    // Standard search: hit TMDB proxy search
+                    navigate(`/?s=${encodeURIComponent(searchQuery.trim())}&cat=search`);
+                }
                 setIsSearchOpen(false);
                 setSearchQuery('');
                 
-                // Reset TV focus to Home when search is executed, just like dropdown filters do.
+                // Reset TV focus to the first nav item when search is executed
                 if (isTV()) {
                     setFocusedNavIdx(0);
-                    // The useEffect above will naturally pick this up and focus navLinkRefs.current[0],
-                    // but we can also force it here for immediate feedback:
                     setTimeout(() => navLinkRefs.current[0]?.focus({ preventScroll: true }), 50);
                 }
             }
@@ -423,9 +386,6 @@ const Navbar = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [activeDropdown, isSearchOpen, focusedNavIdx, navLinks, navigate]);
 
-    // Compute once per render — avoids calling window.innerWidth + UA check ~15 times in JSX.
-    const tvMode = isTV();
-
     return (
         <nav className={`navbar ${tvMode ? 'navbar--tv-mode' : ''}`} onKeyDown={handleNavKeyDown} id="tv-navbar">
             <div className="nav-left">
@@ -443,13 +403,14 @@ const Navbar = () => {
                     {navLinks.map((link, idx) => {
                         const isActive =
                             currentCat === link.cat ||
-                            (link.cat === 'home' && location.pathname === '/' && !location.search);
+                            link.path === location.pathname ||
+                            false;
                         const isKbFocused = focusedNavIdx === idx && tvMode;
                         const isOpen = activeDropdown === link.name;
 
                         return (
                             <div
-                                key={link.name || 'dice'}
+                                key={link.name}
                                 className="nav-item-container"
                                 onMouseEnter={() => link.dropdown && setActiveDropdown(link.name)}
                                 onMouseLeave={() => setActiveDropdown(null)}
@@ -507,7 +468,7 @@ const Navbar = () => {
                         <input
                             type="text"
                             className="nav-search-input"
-                            placeholder="Search..."
+                            placeholder={location.pathname === '/downloads' ? 'Search Downloads...' : 'Search Movies & TV...'}
                             autoFocus
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
@@ -552,7 +513,7 @@ const Navbar = () => {
                         </div>
                         <div className="mobile-nav-links">
                             {navLinks.map(link => (
-                                <div key={link.name || 'dice'} className="mobile-nav-item">
+                                <div key={link.name} className="mobile-nav-item">
                                     <div
                                         className={`mobile-nav-link-main ${activeDropdown === link.name ? 'active' : ''}`}
                                         onClick={() =>
@@ -576,12 +537,6 @@ const Navbar = () => {
                                                     key={subItem.name}
                                                     to={subItem.path || '#'}
                                                     className="mobile-dropdown-item"
-                                                    onClick={(e) => {
-                                                        if (subItem.action) {
-                                                            e.preventDefault();
-                                                            handleDiceAction(subItem.action);
-                                                        }
-                                                    }}
                                                 >
                                                     {subItem.name}
                                                 </Link>

@@ -32,7 +32,7 @@
   .meta-info { font-size: 0.85rem; }
   .meta-label { min-width: 80px; }
   .detail-actions { width: 100%; }
-  .btn-watch { width: 100%; padding: 0.8rem; font-size: 1rem; }
+  .btn-watch, .btn-download-detail { width: 100%; padding: 0.8rem; font-size: 1rem; }
   
   /* Watch Page */
   .watch-layout {

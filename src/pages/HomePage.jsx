@@ -32,6 +32,7 @@ const HomePage = () => {
         if (s) return `Search results for "${s}"`;
         if (k && kn) return `Keyword: ${kn}`;
         if (cast && cn) return `Movies starring ${cn}`;
+        if (cat === 'movie' && type === 'movie') return 'Trending Movies & Web Shows';
         if (cat === 'hi') return 'Bollywood Movies';
         if (cat === 'en') return 'Hollywood Movies';
         if (cat === '16') return 'Anime Series';
@@ -43,6 +44,7 @@ const HomePage = () => {
         }
         if (cat === 'top') {
             const region = lang === 'hi' ? 'Indian ' : (lang === 'en' ? 'Hollywood ' : '');
+            if (type === 'tv' && lang === 'ko') return 'Top Rated K-Dramas';
             if (type === 'tv') return `Top Rated ${region}TV Shows`;
             if (type === 'movie') return `Top Rated ${region}Movies`;
             return `Top Rated ${region}IMDb`;
@@ -58,15 +60,18 @@ const HomePage = () => {
         if (cat === 'dice') return `Random (${lang === 'en' ? 'Hollywood' : 'Indian'})`;
         if (cat === 'lang') return 'Language Specific Content';
         if (type === 'tv') return 'Latest Web Series';
-        if (type === 'movie' && !lang && !genre) return 'Bollywood Highlights';
+        if (type === 'movie' && !lang && !genre) return 'Popular Hindi Movies & Web Shows';
         return 'Filtered Content';
     }, [s, k, kn, cast, cn, cat, latest, lang, type, sort, genre]);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     const fetchUrlData = useCallback((pageParams = { page: 1 }) => {
         if (s) return movieApi.searchMulti(s, pageParams.page);
         if (k) return movieApi.getMoviesByKeyword(k, pageParams);
         if (cast) return movieApi.getMoviesByCast(cast, pageParams);
+
+        if (cat === 'movie' && type === 'movie') {
+            return movieApi.getTrending('all', 'day', pageParams);
+        }
 
         const today = new Date().toISOString().split('T')[0];
 
@@ -95,9 +100,20 @@ const HomePage = () => {
                 ...pageParams
             };
 
-            if (latest === 'ott') params.with_release_type = 4;
-            else if (latest === 'theatrical') params.with_release_type = 3;
-            else if (latest === 'all') params.with_release_type = '3|4';
+            if (latest === 'theatrical') {
+                return movieApi.getNowPlaying({
+                    region: 'IN',
+                    ...pageParams
+                });
+            }
+
+            if (latest === 'ott') {
+                params.region = 'IN';
+                params.watch_region = 'IN';
+                params.with_watch_monetization_types = 'flatrate';
+                params.sort_by = 'primary_release_date.desc';
+                return movieApi.discoverBoth(params);
+            }
 
             params.sort_by = 'primary_release_date.desc';
 
@@ -121,10 +137,9 @@ const HomePage = () => {
 
         if (!lang && !genre && !provider && !s && !k && !cat) {
             params.with_original_language = 'hi';
-            if (sort === 'popularity.desc') {
-                params['vote_average.gte'] = 7;
-                params['vote_count.gte'] = 50;
-            }
+            params.sort_by = 'popularity.desc';
+            params['first_air_date.lte'] = today;
+            return movieApi.discoverBoth(params);
         }
 
         if (lang) params.with_original_language = lang;
@@ -147,6 +162,13 @@ const HomePage = () => {
             params.watch_region = 'IN';
         }
 
+        if (provider && cat === 'ott') {
+            params.with_origin_country = 'IN|US|GB';
+            params.region = 'IN';
+            params.sort_by = 'primary_release_date.desc';
+            return movieApi.discoverBoth(params);
+        }
+
         if (cat === 'tv_hi') {
             params.with_original_language = 'hi';
             return movieApi.discoverTv(params);
@@ -166,7 +188,7 @@ const HomePage = () => {
         params['primary_release_date.lte'] = today;
         params['first_air_date.lte'] = today;
         return movieApi.discoverBoth(params);
-    }, [location.search]);
+    }, [cast, cat, genre, k, lang, latest, minRating, provider, s, sort, type, year]);
 
     const isTVSize = () => window.innerWidth >= 1024;
 
