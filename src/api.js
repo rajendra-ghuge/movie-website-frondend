@@ -118,6 +118,7 @@ export const movieApi = {
     },
     getServerConfig: async () => {
         const DEFAULT_CONFIG = {
+            api_base_url: "https://movie-website-backend-tw3j.onrender.com/proxy",
             servers: [
                 { id: 4, label: 'S4 - Recommended' },
                 { id: 1, label: 'S1' },
@@ -146,7 +147,7 @@ export const movieApi = {
                 10: "https://vidsrc.wtf/api/3/movie/?id={id}&autoplay=1",
                 11: "https://peachify.top/embed/movie/{id}?dub=Hindi&sub=English",
                 12: "https://111movies.com/movie/{id}",
-                13: "https://player.vidzee.wtf/embed/movie/{id}?sr=hindi&server=7&autoplay=true?muted=true"
+                13: "https://player.vidzee.wtf/embed/movie/{id}?sr=hindi&server=7&autoplay=true"
             },
             tv: {
                 5: "https://vidlux.site/embed/tv/{id}/{s}/{e}",
@@ -161,7 +162,7 @@ export const movieApi = {
                 10: "https://vidsrc.wtf/api/3/tv/?id={id}&s={s}&e={e}&autoplay=1",
                 11: "https://peachify.top/embed/tv/{id}/{s}/{e}?dub=Hindi&sub=English",
                 12: "https://111movies.com/tv/{id}/{s}/{e}",
-                13:"https://player.vidzee.wtf/embed/tv/{id}/{s}/{e}?sr=hindi&server=7&autoplay=true&muted=true"
+                13:"https://player.vidzee.wtf/embed/tv/{id}/{s}/{e}?sr=hindi&server=7&autoplay=true"
             }
         };
 
