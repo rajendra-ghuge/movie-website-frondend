@@ -6,6 +6,8 @@ import { movieApi } from '../api';
 import Navbar from '../components/Navbar';
 import Disclaimer from '../components/Disclaimer';
 
+const FALLBACK_DEFAULT_SERVER = 11;
+
 /* ─────────────────────────────────────────────────────────
  * TV keyboard navigation only active on laptop / TV (≥ 1024px).
  * Mobile layout & behaviour are completely unchanged.
@@ -37,7 +39,7 @@ const WatchPage = () => {
     const navigate = useNavigate();
 
     // UI State
-    const [selectedServer, setSelectedServer] = useState(11);
+    const [selectedServer, setSelectedServer] = useState(FALLBACK_DEFAULT_SERVER);
     const [selectedSeason, setSelectedSeason] = useState(parseInt(sParam) || 1);
     const [selectedEpisode, setSelectedEpisode] = useState(parseInt(eParam) || (type === 'tv' ? 1 : null));
 
@@ -66,6 +68,7 @@ const WatchPage = () => {
     const nextEpRef = useRef(null);
     const episodeRefs = useRef([]);
     const similarRefs = useRef([]);
+    const hasUserSelectedServerRef = useRef(false);
 
     // ── Data Fetching ──────────────────────────────────────
     const { data: detail, isLoading: isDetailLoading } = useQuery({
@@ -160,6 +163,14 @@ const WatchPage = () => {
     });
 
     const servers = useMemo(() => serverConfig?.servers || [], [serverConfig]);
+
+    useEffect(() => {
+        if (!serverConfig || hasUserSelectedServerRef.current) return;
+
+        const defaultServer = Number(serverConfig.default_server || FALLBACK_DEFAULT_SERVER);
+        const hasDefaultServer = servers.some(server => server.id === defaultServer);
+        setSelectedServer(hasDefaultServer ? defaultServer : FALLBACK_DEFAULT_SERVER);
+    }, [serverConfig, servers]);
 
     // Memoized so it only recalculates when player dependencies change,
     // not on every scroll/focus re-render.
@@ -389,6 +400,7 @@ const WatchPage = () => {
                 else if (recommendations?.length > 0) focusSection('similar', 0);
             } else if (isConfirmKey(e)) {
                 e.preventDefault();
+                hasUserSelectedServerRef.current = true;
                 setSelectedServer(servers[serverIdx].id);
             }
             return;
@@ -625,6 +637,7 @@ const WatchPage = () => {
                                             onFocus={() => { if (tvMode) { setActiveSection('servers'); setServerIdx(idx); } }}
                                             className={`server-btn ${selectedServer === server.id ? 'active' : ''} ${activeSection === 'servers' && serverIdx === idx && tvMode ? 'server-btn--tv-focused' : ''}`}
                                             onClick={() => {
+                                                hasUserSelectedServerRef.current = true;
                                                 setSelectedServer(server.id);
                                                 if (!tvMode) setIsServersOpen(false);
                                             }}

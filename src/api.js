@@ -118,7 +118,8 @@ export const movieApi = {
     },
     getServerConfig: async () => {
         const DEFAULT_CONFIG = {
-            api_base_url: "https://movie-website-backend-tw3j.onrender.com/proxy",
+            api_base_url: import.meta.env.VITE_API_URL,
+            default_server: 11,
             servers: [
                 { id: 4, label: 'S4 - Recommended' },
                 { id: 1, label: 'S1' },

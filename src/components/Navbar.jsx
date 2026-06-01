@@ -98,6 +98,7 @@ const Navbar = () => {
     const currentCat = query.get('cat') || 'home';
 
     const tvMode = isTV();
+    const showDownloads = typeof window !== 'undefined' && !!window.AndroidApp && !tvMode;
 
     const navLinks = [
         { name: 'Trending', path: '/?type=movie&cat=movie', cat: 'movie' },
@@ -195,7 +196,8 @@ const Navbar = () => {
                 { name: 'Gujarati', path: '/?lang=gu&cat=lang' },
                 { name: 'English', path: '/?lang=en&cat=lang' }
             ]
-        }
+        },
+        ...(showDownloads ? [{ name: 'Downloader', path: '/downloads', cat: 'downloads' }] : [])
     ];
 
     // Sync native DOM focus with the visual TV focus index

@@ -1,9 +1,65 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { ChevronDown, Download, FileText, Languages, Loader2, Play, RefreshCw } from 'lucide-react';
+import { ChevronDown, Download, FileText, Languages, Loader2, Play, RefreshCw, Search as SearchIcon } from 'lucide-react';
 import { movieApi } from '../api';
 import Navbar from '../components/Navbar';
 import Disclaimer from '../components/Disclaimer';
+
+const DEFAULT_FILTER_OPTIONS = {
+    genres: [
+        'All', 'Action', 'Adventure', 'Animation', 'Biography', 'Comedy', 'Crime',
+        'Documentary', 'Drama', 'Family', 'Fantasy', 'Film-Noir', 'Game-Show',
+        'History', 'Horror', 'Music', 'Musical', 'Mystery', 'News', 'Reality-TV',
+        'Romance', 'Sci-Fi', 'Short', 'Sport', 'Talk-Show', 'Thriller', 'War',
+        'Western', 'Other',
+    ],
+    countries: [
+        'All', 'United States', 'United Kingdom', 'Korea', 'Japan', 'Bangladesh',
+        'China', 'Egypt', 'France', 'Germany', 'India', 'Indonesia', 'Iraq',
+        'Italy', 'Ivory Coast', 'Kenya', 'Lebanon', 'Mexico', 'Morocco',
+        'Nigeria', 'Pakistan', 'Philippines', 'Russia', 'Saudi Arabia',
+        'South Africa', 'Spain', 'Syria', 'Thailand', 'Malaysia', 'Turkey',
+        'Other',
+    ],
+    years: [
+        'All', '2026', '2025', '2024', '2023', '2022', '2021', '2020',
+        '2010s', '2000s', '1990s', '1980s', 'Other',
+    ],
+    languages: [
+        'All', 'English dub', 'French dub', 'Hindi dub', 'Bengali dub',
+        'Urdu dub', 'Punjabi dub', 'Tamil dub', 'Telugu dub', 'Malayalam dub',
+        'Kannada dub', 'Arabic dub', 'Arabic sub', 'Tagalog dub',
+        'Indonesian dub', 'Russian dub', 'Kurdish sub', 'Spanish dub',
+        'Spanish sub', 'SpanishLatam dub',
+    ],
+    sorts: ['ForYou', 'Hottest', 'Latest', 'Rating'],
+    channels: [
+        { id: 1, label: 'Movies' },
+        { id: 2, label: 'TV / Web Shows' },
+    ],
+};
+
+const DEFAULT_FILTERS = {
+    page: 1,
+    perPage: 18,
+    channelId: 1,
+    genre: 'All',
+    country: 'India',
+    year: 'All',
+    language: 'Hindi dub',
+    sort: 'Latest',
+};
+
+const DOWNLOAD_FILTER_CACHE_KEY = 'download_filter_state';
+
+const readDownloadFilterState = () => {
+    try {
+        const raw = sessionStorage.getItem(DOWNLOAD_FILTER_CACHE_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+};
 
 const formatBytes = (size) => {
     if (typeof size === 'string' && /[a-z]/i.test(size)) return size;
@@ -14,12 +70,58 @@ const formatBytes = (size) => {
 
 const getDetailData = (response) => response?.data?.data || {};
 
+const getFilterPaginationMeta = (responseData, page, perPage, itemCount) => {
+    const data = responseData?.data || {};
+    const pager = data.pager || responseData?.pager || {};
+    const currentPage = Number(pager.page || data.page || responseData?.page || page);
+    const totalPages = Number(
+        pager.totalPages ||
+        pager.total_pages ||
+        data.totalPages ||
+        data.total_pages ||
+        data.pageCount ||
+        data.pages ||
+        responseData?.totalPages ||
+        responseData?.total_pages ||
+        0
+    );
+    const totalItems = Number(
+        pager.totalCount ||
+        pager.total ||
+        data.total ||
+        data.totalCount ||
+        data.total_results ||
+        responseData?.total ||
+        responseData?.totalCount ||
+        0
+    );
+    const nextPage = Number(pager.nextPage || data.nextPage || responseData?.nextPage || 0);
+
+    if (typeof pager.hasMore === 'boolean') return { currentPage, hasMore: pager.hasMore };
+    if (typeof pager.hasNext === 'boolean') return { currentPage, hasMore: pager.hasNext };
+    if (typeof data.hasMore === 'boolean') return { currentPage, hasMore: data.hasMore };
+    if (typeof data.hasNext === 'boolean') return { currentPage, hasMore: data.hasNext };
+    if (nextPage > currentPage) return { currentPage, hasMore: true };
+    if (totalPages > 0) return { currentPage, hasMore: currentPage < totalPages };
+    if (totalItems > 0) return { currentPage, hasMore: currentPage * perPage < totalItems };
+    return { currentPage, hasMore: itemCount >= perPage };
+};
+
 const getApiErrorMessage = (error, fallback) => {
     const detail = error.response?.data?.detail;
-    if (typeof detail === 'string') return detail;
-    if (detail?.error) return detail.error;
+    const message = typeof detail === 'string'
+        ? detail
+        : detail?.error || error.message || fallback;
+
+    if (
+        /https?:\/\//i.test(message) ||
+        /h5-api|aoneroom|wefeed|videodownloader|BuildConfig|ENOTFOUND|ECONN|timeout|Failed to fetch|Network Error/i.test(message)
+    ) {
+        return 'Service is not reachable. Please try again.';
+    }
+
     if (error.response?.status) return `${fallback} (${error.response.status})`;
-    return error.message || fallback;
+    return message;
 };
 
 const normalizeTitleForMatch = (value) => {
@@ -60,11 +162,14 @@ const DownloadDetailsPage = () => {
     const location = useLocation();
     const isApk = Boolean(window.AndroidApp);
     const autoSearchRef = useRef('');
+    const cachedFilterStateRef = useRef(readDownloadFilterState());
+    const didPushDetailHistoryRef = useRef(false);
+    const cachedFilterState = cachedFilterStateRef.current || {};
     const [query, setQuery] = useState('');
     const [releaseYear, setReleaseYear] = useState('');
     const [mediaType, setMediaType] = useState('');
     const [tmdbId, setTmdbId] = useState('');
-    const [results, setResults] = useState([]);
+    const [results, setResults] = useState(() => cachedFilterState.results || []);
     const [selectedItem, setSelectedItem] = useState(null);
     const [detailData, setDetailData] = useState(null);
     const [detailPath, setDetailPath] = useState('');
@@ -80,6 +185,14 @@ const DownloadDetailsPage = () => {
     const [detailError, setDetailError] = useState('');
     const [downloadError, setDownloadError] = useState('');
     const [isCaptionsOpen, setIsCaptionsOpen] = useState(false);
+    const filterOptions = DEFAULT_FILTER_OPTIONS;
+    const [filters, setFilters] = useState(() => cachedFilterState.filters || DEFAULT_FILTERS);
+    const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+    const [isFilterMode, setIsFilterMode] = useState(() => Boolean(cachedFilterState.isFilterMode));
+    const [filterPage, setFilterPage] = useState(() => cachedFilterState.filterPage || 1);
+    const [hasMoreFilterResults, setHasMoreFilterResults] = useState(() => Boolean(cachedFilterState.hasMoreFilterResults));
+    const [isLoadingMoreFilters, setIsLoadingMoreFilters] = useState(false);
+    const resultCardRefs = useRef([]);
 
     const subject = detailData?.subject || null;
     const dubs = useMemo(() => detailData?.dubs || [], [detailData]);
@@ -92,6 +205,7 @@ const DownloadDetailsPage = () => {
     const downloads = downloadData?.downloads || [];
     const captions = downloadData?.captions || [];
     const canWatchFallback = Boolean(tmdbId && mediaType);
+    const showNavFilterPanel = location.pathname === '/downloads' && !location.search && !selectedItem;
 
     const filteredResults = useMemo(() => {
         const normalizedQuery = normalizeTitleForMatch(query);
@@ -143,8 +257,46 @@ const DownloadDetailsPage = () => {
         window.scrollTo(0, 0);
     }, []);
 
+    useEffect(() => {
+        if (location.pathname !== '/downloads' || location.search) return;
+
+        try {
+            sessionStorage.setItem(DOWNLOAD_FILTER_CACHE_KEY, JSON.stringify({
+                filters,
+                results,
+                isFilterMode,
+                filterPage,
+                hasMoreFilterResults,
+            }));
+        } catch {
+            // Ignore storage failures; the downloader still works without cache.
+        }
+    }, [filterPage, filters, hasMoreFilterResults, isFilterMode, location.pathname, location.search, results]);
+
+    useEffect(() => {
+        const handlePopState = () => {
+            if (!didPushDetailHistoryRef.current) return;
+            didPushDetailHistoryRef.current = false;
+            setSelectedItem(null);
+            setDetailData(null);
+            setDetailPath('');
+            setDownloadData(null);
+            setDetailError('');
+            setDownloadError('');
+            setIsCaptionsOpen(false);
+        };
+
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, []);
+
     const loadDetail = useCallback(async (nextDetailPath, baseItem = selectedItem) => {
         if (!nextDetailPath) return;
+
+        if (baseItem && !selectedItem && !didPushDetailHistoryRef.current && location.pathname === '/downloads') {
+            window.history.pushState({ downloaderDetail: true }, '', window.location.href);
+            didPushDetailHistoryRef.current = true;
+        }
 
         setIsDetailLoading(true);
         setDetailError('');
@@ -177,7 +329,7 @@ const DownloadDetailsPage = () => {
         } finally {
             setIsDetailLoading(false);
         }
-    }, [isApk, selectedItem]);
+    }, [isApk, location.pathname, selectedItem]);
 
     const runSearch = useCallback(async (keyword) => {
         if (!keyword) return;
@@ -185,6 +337,8 @@ const DownloadDetailsPage = () => {
         setIsSearching(true);
         setSearchError('');
         setResults([]);
+        setIsFilterMode(false);
+        setHasMoreFilterResults(false);
         setSelectedItem(null);
         setDetailData(null);
         setDownloadData(null);
@@ -204,6 +358,115 @@ const DownloadDetailsPage = () => {
             setIsSearching(false);
         }
     }, [isApk]);
+
+    const handleFilterChange = (name, value) => {
+        setFilters((current) => ({ ...current, [name]: value }));
+    };
+
+    const fetchFilterPage = useCallback(async (page, replace = false) => {
+        if (replace) {
+            setIsSearching(true);
+        } else {
+            setIsLoadingMoreFilters(true);
+        }
+        setSearchError('');
+
+        try {
+            if (!isApk) {
+                throw new Error('Filter search is available in the Android app only.');
+            }
+
+            const response = await callNative(
+                'aoneroomFilter',
+                [
+                    page,
+                    filters.perPage,
+                    filters.channelId,
+                    filters.genre,
+                    filters.country,
+                    filters.year,
+                    filters.language,
+                    filters.sort,
+                ],
+                'apk-aoneroom-filter-result',
+                'apk-aoneroom-filter-error'
+            );
+            const nextItems = response.data?.data?.items || [];
+            const pagination = getFilterPaginationMeta(response.data, page, filters.perPage, nextItems.length);
+
+            setResults((current) => {
+                if (replace) return nextItems;
+
+                const seen = new Set(current.map((item) => `${item.subjectId}-${item.detailPath}`));
+                const uniqueItems = nextItems.filter((item) => !seen.has(`${item.subjectId}-${item.detailPath}`));
+                return [...current, ...uniqueItems];
+            });
+            setFilterPage(pagination.currentPage);
+            setHasMoreFilterResults(pagination.hasMore);
+        } catch (error) {
+            setSearchError(getApiErrorMessage(error, 'Filter search failed.'));
+            setHasMoreFilterResults(false);
+        } finally {
+            if (replace) {
+                setIsSearching(false);
+            } else {
+                setIsLoadingMoreFilters(false);
+            }
+        }
+    }, [filters, isApk]);
+
+    const runFilterSearch = useCallback(async () => {
+        setResults([]);
+        setQuery('');
+        setReleaseYear('');
+        setMediaType('');
+        setTmdbId('');
+        setSelectedItem(null);
+        setDetailData(null);
+        setDownloadData(null);
+        setIsFilterMode(true);
+        setFilterPage(1);
+        setHasMoreFilterResults(false);
+        setIsFilterDropdownOpen(false);
+        resultCardRefs.current = [];
+        await fetchFilterPage(1, true);
+    }, [fetchFilterPage]);
+
+    const loadNextFilterPage = useCallback(() => {
+        if (!isFilterMode || selectedItem || !hasMoreFilterResults || isSearching || isLoadingMoreFilters) return;
+        fetchFilterPage(filterPage + 1);
+    }, [
+        fetchFilterPage,
+        filterPage,
+        hasMoreFilterResults,
+        isFilterMode,
+        isLoadingMoreFilters,
+        isSearching,
+        selectedItem,
+    ]);
+
+    useEffect(() => {
+        if (!isFilterMode || selectedItem || !hasMoreFilterResults || isSearching || isLoadingMoreFilters) return;
+
+        const triggerIdx = Math.max(filteredResults.length - 2, 0);
+        const triggerCard = resultCardRefs.current[triggerIdx];
+        if (!triggerCard) return;
+
+        const observer = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting) loadNextFilterPage();
+        }, { root: null, rootMargin: '0px', threshold: 0.35 });
+
+        observer.observe(triggerCard);
+        return () => observer.disconnect();
+    }, [
+        filteredResults.length,
+        hasMoreFilterResults,
+        isFilterMode,
+        isLoadingMoreFilters,
+        isSearching,
+        loadNextFilterPage,
+        selectedItem,
+    ]);
 
     useEffect(() => {
         const params = new URLSearchParams(location.search);
@@ -282,6 +545,85 @@ const DownloadDetailsPage = () => {
             <main className={`download-page${selectedItem ? ' download-page--selected' : ' download-page--results'}`}>
                 {!selectedItem && (
                 <section className="download-search-panel">
+                    {showNavFilterPanel && (
+                        <div className="download-filter-panel">
+                            <button
+                                type="button"
+                                className="download-filter-toggle"
+                                onClick={() => setIsFilterDropdownOpen((open) => !open)}
+                                aria-expanded={isFilterDropdownOpen}
+                            >
+                                <span>Apply Filter</span>
+                                <ChevronDown size={18} className={isFilterDropdownOpen ? 'rotate-180' : ''} />
+                            </button>
+                            {isFilterDropdownOpen && (
+                                <div className="download-filter-menu">
+                                    <div className="download-filter-grid">
+                                        <label>
+                                            <span>Channel</span>
+                                            <select value={filters.channelId} onChange={(event) => handleFilterChange('channelId', Number(event.target.value))}>
+                                                {filterOptions.channels.map((channel) => (
+                                                    <option key={channel.id} value={channel.id}>{channel.label}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        <label>
+                                            <span>Genre</span>
+                                            <select value={filters.genre} onChange={(event) => handleFilterChange('genre', event.target.value)}>
+                                                {filterOptions.genres.map((genre) => (
+                                                    <option key={genre} value={genre}>{genre}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        <label>
+                                            <span>Country</span>
+                                            <select value={filters.country} onChange={(event) => handleFilterChange('country', event.target.value)}>
+                                                {filterOptions.countries.map((country) => (
+                                                    <option key={country} value={country}>{country}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        <label>
+                                            <span>Year</span>
+                                            <select value={filters.year} onChange={(event) => handleFilterChange('year', event.target.value)}>
+                                                {filterOptions.years.map((year) => (
+                                                    <option key={year} value={year}>{year}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        <label>
+                                            <span>Language</span>
+                                            <select value={filters.language} onChange={(event) => handleFilterChange('language', event.target.value)}>
+                                                {filterOptions.languages.map((language) => (
+                                                    <option key={language} value={language}>{language}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                        <label>
+                                            <span>Sort by</span>
+                                            <select value={filters.sort} onChange={(event) => handleFilterChange('sort', event.target.value)}>
+                                                {filterOptions.sorts.map((sort) => (
+                                                    <option key={sort} value={sort}>{sort}</option>
+                                                ))}
+                                            </select>
+                                        </label>
+                                    </div>
+                                    <button type="button" className="download-filter-search-btn" onClick={runFilterSearch} disabled={isSearching}>
+                                        {isSearching ? <Loader2 className="animate-spin" size={18} /> : <SearchIcon size={18} />}
+                                        Search
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {showNavFilterPanel && !isFilterDropdownOpen && filteredResults.length === 0 && !isSearching && !searchError && (
+                        <div className="download-filter-empty">
+                            <Download size={34} />
+                            <p>Search any movies or web shows, or apply filter.</p>
+                        </div>
+                    )}
+
                     {isSearching && (
                         <div className="download-loading-row">
                             <Loader2 className="animate-spin" size={18} />
@@ -314,10 +656,12 @@ const DownloadDetailsPage = () => {
                     )}
 
                     {!selectedItem && filteredResults.length > 0 && (
-                        <div className="download-results movie-grid">
-                            {filteredResults.map((item) => (
+                        <>
+                            <div className="download-results movie-grid">
+                                {filteredResults.map((item, index) => (
                                     <button
                                         key={`${item.subjectId}-${item.detailPath}`}
+                                        ref={el => { resultCardRefs.current[index] = el; }}
                                         type="button"
                                         className="download-result-card movie-card"
                                         onClick={() => loadDetail(item.detailPath, item)}
@@ -336,7 +680,13 @@ const DownloadDetailsPage = () => {
                                         </div>
                                     </button>
                                 ))}
-                        </div>
+                            </div>
+                            {isLoadingMoreFilters && (
+                                <div className="infinite-loader" aria-live="polite">
+                                    <Loader2 className="animate-spin" size={22} />
+                                </div>
+                            )}
+                        </>
                     )}
                 </section>
                 )}
