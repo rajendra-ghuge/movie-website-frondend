@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Play, ChevronLeft, ChevronRight, Server, ChevronDown } from 'lucide-react';
+import { Loader2, Play, ChevronLeft, ChevronRight, Server, ChevronDown, Download, X } from 'lucide-react';
 import { movieApi } from '../api';
 import Navbar from '../components/Navbar';
 import Disclaimer from '../components/Disclaimer';
@@ -56,6 +56,7 @@ const WatchPage = () => {
     const [playerSpacerHeight, setPlayerSpacerHeight] = useState(0);
     const [navHeight, setNavHeight] = useState(50);
     const [isIframeLoading, setIsIframeLoading] = useState(true);
+    const [isDownloadOpen, setIsDownloadOpen] = useState(false);
 
     const playerAnchorRef = useRef(null);
     const playerRef = useRef(null);
@@ -69,6 +70,7 @@ const WatchPage = () => {
     const episodeRefs = useRef([]);
     const similarRefs = useRef([]);
     const hasUserSelectedServerRef = useRef(false);
+    const downloadCloseBtnRef = useRef(null);
 
     // ── Data Fetching ──────────────────────────────────────
     const { data: detail, isLoading: isDetailLoading } = useQuery({
@@ -105,6 +107,27 @@ const WatchPage = () => {
     useEffect(() => {
         setIsIframeLoading(true);
     }, [selectedServer, id, selectedSeason, selectedEpisode]);
+
+    useEffect(() => {
+        if (!isDownloadOpen) return undefined;
+
+        const previousBodyOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        downloadCloseBtnRef.current?.focus();
+
+        const handleDownloadEscape = (event) => {
+            if (event.key !== 'Escape') return;
+            event.preventDefault();
+            event.stopPropagation();
+            setIsDownloadOpen(false);
+        };
+
+        document.addEventListener('keydown', handleDownloadEscape, true);
+        return () => {
+            document.body.style.overflow = previousBodyOverflow;
+            document.removeEventListener('keydown', handleDownloadEscape, true);
+        };
+    }, [isDownloadOpen]);
 
     useEffect(() => {
         const updateMobileDock = () => {
@@ -522,6 +545,17 @@ const WatchPage = () => {
 
     // Compute once per render — avoids calling window.innerWidth + UA check ~25 times in JSX loops.
     const tvMode = isTVSize();
+    const isApk = typeof window !== 'undefined' && !!window.AndroidApp;
+    const fallbackDownloadTemplate = type === 'tv'
+        ? 'https://web.nxsha.app/dl/tv/{id}/{s}/{e}'
+        : 'https://nxsha.space/dl/movie/{id}';
+    const downloadTemplate = serverConfig?.download?.[type] || fallbackDownloadTemplate;
+    const downloadUrl = downloadTemplate
+        .replaceAll('{id}', id)
+        .replaceAll('{s}', selectedSeason ?? '')
+        .replaceAll('{season}', selectedSeason ?? '')
+        .replaceAll('{e}', selectedEpisode ?? '')
+        .replaceAll('{episode}', selectedEpisode ?? '');
 
     return (
         <div className="page-wrapper" onKeyDown={handlePageKeyDown}>
@@ -676,6 +710,11 @@ const WatchPage = () => {
                         {type === 'tv' && selectedEpisode && (
                             <p className="watch-subtitle">S{selectedSeason} E{selectedEpisode}</p>
                         )}
+                        {!isApk && (type === 'movie' || selectedEpisode) && (
+                            <button type="button" className="watch-download-btn" onClick={() => setIsDownloadOpen(true)}>
+                                <Download size={18} /> Download
+                            </button>
+                        )}
                     </div>
 
                     {type === 'tv' && (
@@ -796,6 +835,33 @@ const WatchPage = () => {
             <footer className="footer" style={{ marginTop: '4rem', marginBottom: '2rem', opacity: 0.5, fontSize: '0.8rem', textAlign: 'center' }}>
                 <p>&copy; 2026 4KHDHUB India &bull; All Rights Reserved &bull; <Disclaimer /></p>
             </footer>
+            {isDownloadOpen && (
+                <div className="download-frame-overlay" role="dialog" aria-modal="true" aria-label={`Download ${title}`}>
+                    <header className="download-frame-header">
+                        <h2>
+                            {title}
+                            {type === 'tv' && ` — S${selectedSeason} E${selectedEpisode}`}
+                        </h2>
+                        <button
+                            ref={downloadCloseBtnRef}
+                            type="button"
+                            className="download-frame-close"
+                            onClick={() => setIsDownloadOpen(false)}
+                            aria-label="Close download"
+                        >
+                            <X size={24} aria-hidden="true" />
+                        </button>
+                    </header>
+                    <div className="download-frame-viewport">
+                        <iframe
+                            className="download-frame"
+                            src={downloadUrl}
+                            title={`Download ${title}`}
+                            allow="clipboard-read; clipboard-write"
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

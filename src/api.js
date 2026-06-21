@@ -164,6 +164,10 @@ export const movieApi = {
                 11: "https://peachify.top/embed/tv/{id}/{s}/{e}?dub=Hindi&sub=English",
                 12: "https://111movies.com/tv/{id}/{s}/{e}",
                 13:"https://player.vidzee.wtf/embed/tv/{id}/{s}/{e}?sr=7&autoplay=true"
+            },
+            download: {
+                movie: "https://nxsha.space/dl/movie/{id}",
+                tv: "https://web.nxsha.app/dl/tv/{id}/{s}/{e}"
             }
         };
 
@@ -174,7 +178,16 @@ export const movieApi = {
             // Bypass axios instance to avoid API_BASE_URL prefixing
             const res = await axios.get(configUrl);
             if (isValidServerConfig(res.data)) {
-                return res.data;
+                return {
+                    ...DEFAULT_CONFIG,
+                    ...res.data,
+                    movie: { ...DEFAULT_CONFIG.movie, ...res.data.movie },
+                    tv: { ...DEFAULT_CONFIG.tv, ...res.data.tv },
+                    download: {
+                        ...DEFAULT_CONFIG.download,
+                        ...(res.data.download || {})
+                    }
+                };
             }
             return DEFAULT_CONFIG;
         } catch {
