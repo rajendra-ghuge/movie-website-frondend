@@ -1,19 +1,5 @@
 # React + Vite
 
-## Password protection on Vercel
-
-The site is protected with HTTP Basic Authentication by `middleware.js`.
-Configure these server-side environment variables in the Vercel project:
-
-```text
-BASIC_AUTH_USERNAME=admin
-BASIC_AUTH_PASSWORD=your-strong-password
-```
-
-Set them for each Vercel environment you deploy to, then redeploy. Do not prefix
-these variables with `VITE_`, because that would expose them in the browser
-bundle.
-
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
