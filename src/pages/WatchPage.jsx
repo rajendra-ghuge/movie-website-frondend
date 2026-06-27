@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Loader2, Play, ChevronLeft, ChevronRight, Server, ChevronDown, Download, X } from 'lucide-react';
+import { Loader2, Play, ChevronLeft, ChevronRight, Server, ChevronDown, Download, X, RefreshCw } from 'lucide-react';
 import { movieApi } from '../api';
 import Navbar from '../components/Navbar';
 import Disclaimer from '../components/Disclaimer';
@@ -71,9 +71,10 @@ const WatchPage = () => {
     const similarRefs = useRef([]);
     const hasUserSelectedServerRef = useRef(false);
     const downloadCloseBtnRef = useRef(null);
+    const retryButtonRef = useRef(null);
 
     // ── Data Fetching ──────────────────────────────────────
-    const { data: detail, isLoading: isDetailLoading } = useQuery({
+    const { data: detail, isLoading: isDetailLoading, isFetching: isDetailFetching, refetch: refetchDetail } = useQuery({
         queryKey: ['detail', type, id],
         queryFn: async () => {
             // Matches the append_to_response used in MovieDetailPage so both pages
@@ -86,6 +87,12 @@ const WatchPage = () => {
         },
         staleTime: 5 * 60 * 1000,
     });
+
+    useEffect(() => {
+        if (!detail && !isDetailLoading) {
+            setTimeout(() => retryButtonRef.current?.focus(), 0);
+        }
+    }, [detail, isDetailLoading]);
 
 
     const { data: seasonData, isLoading: isSeasonLoading } = useQuery({
@@ -538,7 +545,28 @@ const WatchPage = () => {
     // Only show a hard loading screen when there is truly NO data at all.
     // When cached data exists (background refetch), render immediately with it.
     if (isDetailLoading && !detail) return <div className="loader-main"><Loader2 className="animate-spin" size={48} color="#fdd835" /></div>;
-    if (!detail) return <div className="loader-main">Error loading player.</div>;
+    if (!detail) return (
+        <div className="page-wrapper">
+            <Navbar />
+            <div className="loader-main error-state">
+                <div className="error-card">
+                    <h2>Unable to load player</h2>
+                    <p>The movie data needed for the player could not be loaded. Try again in a moment.</p>
+                    <button
+                        ref={retryButtonRef}
+                        type="button"
+                        className="btn-retry"
+                        onClick={() => refetchDetail()}
+                        disabled={isDetailFetching}
+                    >
+                        <RefreshCw size={18} className={isDetailFetching ? 'animate-spin' : ''} />
+                        {isDetailFetching ? 'Retrying...' : 'Retry'}
+                    </button>
+                    <span className="error-hint">D-pad: press OK / Enter to retry</span>
+                </div>
+            </div>
+        </div>
+    );
 
     const title = detail.title || detail.name;
     const cast = detail.credits?.cast?.slice(0, 8).map(c => c.name).join(', ');

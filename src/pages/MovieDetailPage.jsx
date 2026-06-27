@@ -1,7 +1,7 @@
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useState, useEffect, useCallback } from 'react';
-import { Download, Play } from 'lucide-react';
+import { Download, Play, RefreshCw } from 'lucide-react';
 import { movieApi } from '../api';
 import Navbar from '../components/Navbar';
 import Disclaimer from '../components/Disclaimer';
@@ -29,8 +29,9 @@ const MovieDetailPage = () => {
     const kwRefs = useRef([]);
     const trailerBridgeRef = useRef(null);
     const trailerIframeRef = useRef(null);
+    const retryButtonRef = useRef(null);
 
-    const { data: movie, isLoading, error } = useQuery({
+    const { data: movie, isLoading, isFetching, error, refetch } = useQuery({
         queryKey: ['detail', type, id],
         queryFn: async () => {
             // Include all fields needed by both DetailPage and WatchPage so they
@@ -42,6 +43,12 @@ const MovieDetailPage = () => {
             return res.data;
         },
     });
+
+    useEffect(() => {
+        if ((error || !movie) && !isLoading) {
+            setTimeout(() => retryButtonRef.current?.focus(), 0);
+        }
+    }, [error, movie, isLoading]);
 
     const { data: keywordsData } = useQuery({
         queryKey: ['keywords', type, id],
@@ -242,7 +249,28 @@ const MovieDetailPage = () => {
             <DetailShimmer />
         </div>
     );
-    if (error || !movie) return <div className="loader-main">Error loading content.</div>;
+    if (error || !movie) return (
+        <div className="page-wrapper">
+            <Navbar />
+            <div className="loader-main error-state">
+                <div className="error-card">
+                    <h2>Unable to load content</h2>
+                    <p>The movie details could not be loaded. This is often a temporary server hiccup.</p>
+                    <button
+                        ref={retryButtonRef}
+                        type="button"
+                        className="btn-retry"
+                        onClick={() => refetch()}
+                        disabled={isFetching}
+                    >
+                        <RefreshCw size={18} className={isFetching ? 'animate-spin' : ''} />
+                        {isFetching ? 'Retrying...' : 'Retry'}
+                    </button>
+                    <span className="error-hint">D-pad: press OK / Enter to retry</span>
+                </div>
+            </div>
+        </div>
+    );
 
     const trailer = movie.videos?.results?.find(v => v.type === 'Trailer') || movie.videos?.results?.[0];
     const title = movie.title || movie.name;

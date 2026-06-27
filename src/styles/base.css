@@ -58,6 +58,74 @@ html, body {
 .animate-spin { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
+.error-state {
+  padding: 5rem 1.5rem;
+  text-align: center;
+}
+
+.error-card {
+  width: min(92vw, 460px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+  background: rgba(20, 20, 20, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 18px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+}
+
+.error-card h2 {
+  margin: 0;
+  color: #fff;
+  font-size: 1.45rem;
+}
+
+.error-card p {
+  margin: 0;
+  color: var(--text-gray);
+  line-height: 1.6;
+}
+
+.btn-retry {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  min-width: 150px;
+  margin-top: 0.35rem;
+  padding: 0.9rem 1.5rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent-yellow);
+  color: #000;
+  font-weight: 900;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+}
+
+.btn-retry:hover:not(:disabled),
+.btn-retry:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 4px;
+  transform: translateY(-2px) scale(1.04);
+  box-shadow: 0 12px 34px rgba(253, 216, 53, 0.35), 0 0 0 3px var(--accent-yellow);
+}
+
+.btn-retry:disabled {
+  cursor: wait;
+  opacity: 0.72;
+}
+
+.error-hint {
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 0.8rem;
+}
+
 ::-webkit-scrollbar { width: 8px; }
 ::-webkit-scrollbar-track { background: var(--bg-black); }
 ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
