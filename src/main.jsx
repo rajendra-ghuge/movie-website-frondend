@@ -1,5 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import './styles/variables.css'
 import './styles/base.css'
 import './styles/navbar.css'
@@ -112,5 +113,6 @@ window.addEventListener('keydown', (e) => {
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <App />
+    <SpeedInsights />
   </StrictMode>,
 )
