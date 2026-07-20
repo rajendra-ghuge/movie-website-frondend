@@ -150,7 +150,7 @@ export const movieApi = {
                 11: "https://peachify.top/embed/movie/{id}?dub=Hindi&sub=English",
                 12: "https://111movies.com/movie/{id}",
                 13: "https://player.vidzee.wtf/embed/movie/{id}?sr=7&autoplay=true",
-                14: "https://screenscape.me/embed?tmdb={id}&type=movie"
+                14: "https://screenscape.me/embed?tmdb={id}&type=movie&lan=hi"
             },
             tv: {
                 5: "https://vidlux.site/embed/tv/{id}/{s}/{e}",
@@ -166,7 +166,7 @@ export const movieApi = {
                 11: "https://peachify.top/embed/tv/{id}/{s}/{e}?dub=Hindi&sub=English",
                 12: "https://111movies.com/tv/{id}/{s}/{e}",
                 13: "https://player.vidzee.wtf/embed/tv/{id}/{s}/{e}?sr=7&autoplay=true",
-                14: "https://screenscape.me/embed?tmdb={id}&type=tv&s={s}&e={e}"
+                14: "https://screenscape.me/embed?tmdb={id}&type=tv&s={s}&e={e}&lan=hi"
             },
             download: {
                 movie: "https://nxsha.space/dl/movie/{id}",
