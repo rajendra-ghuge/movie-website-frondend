@@ -58,16 +58,16 @@ api.interceptors.response.use(
     (response) => response,
     async (error) => {
         const originalRequest = error.config;
-        
+
         // If it's a network error (no response) or server error, and we haven't retried yet
         if (!originalRequest._retry && (!error.response || error.response.status >= 500)) {
             originalRequest._retry = true;
-            
+
             await syncDynamicConfig();
-            
+
             // Update the failed request's base URL to the newly found URL
             originalRequest.baseURL = api.defaults.baseURL;
-            
+
             // Retry the request automatically
             return api(originalRequest);
         }
@@ -133,7 +133,8 @@ export const movieApi = {
                 { id: 10, label: 'S10' },
                 { id: 11, label: 'S11' },
                 { id: 12, label: 'S12' },
-                { id: 13, label: 'S13' }
+                { id: 13, label: 'S13' },
+                { id: 14, label: 'S14' }s
             ],
             movie: {
                 5: "https://vidlux.site/embed/movie/{id}",
@@ -148,7 +149,8 @@ export const movieApi = {
                 10: "https://vidsrc.wtf/api/3/movie/?id={id}&autoplay=1",
                 11: "https://peachify.top/embed/movie/{id}?dub=Hindi&sub=English",
                 12: "https://111movies.com/movie/{id}",
-                13: "https://player.vidzee.wtf/embed/movie/{id}?sr=7&autoplay=true"
+                13: "https://player.vidzee.wtf/embed/movie/{id}?sr=7&autoplay=true",
+                14: "https://screenscape.me/embed?tmdb={id}&type=movie&lan=eng"
             },
             tv: {
                 5: "https://vidlux.site/embed/tv/{id}/{s}/{e}",
@@ -163,7 +165,8 @@ export const movieApi = {
                 10: "https://vidsrc.wtf/api/3/tv/?id={id}&s={s}&e={e}&autoplay=1",
                 11: "https://peachify.top/embed/tv/{id}/{s}/{e}?dub=Hindi&sub=English",
                 12: "https://111movies.com/tv/{id}/{s}/{e}",
-                13:"https://player.vidzee.wtf/embed/tv/{id}/{s}/{e}?sr=7&autoplay=true"
+                13: "https://player.vidzee.wtf/embed/tv/{id}/{s}/{e}?sr=7&autoplay=true",
+                14: "https://screenscape.me/embed?tmdb={id}&type=tv&s={s}&e={e}&lan=eng"
             },
             download: {
                 movie: "https://nxsha.space/dl/movie/{id}",
