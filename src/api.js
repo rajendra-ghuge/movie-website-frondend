@@ -134,7 +134,7 @@ export const movieApi = {
                 { id: 11, label: 'S11' },
                 { id: 12, label: 'S12' },
                 { id: 13, label: 'S13' },
-                { id: 14, label: 'S14' }s
+                { id: 14, label: 'S14' }
             ],
             movie: {
                 5: "https://vidlux.site/embed/movie/{id}",
