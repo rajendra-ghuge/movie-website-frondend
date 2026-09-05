@@ -134,7 +134,7 @@ const LivePlayer = forwardRef(function LivePlayer({ channel, onPreviousChannel, 
               // Autoplay with sound was blocked by browser policy; retry muted
               video.muted = true;
               setIsMuted(true);
-              video.play().then(() => setIsPlaying(true)).catch(() => {});
+              video.play().then(() => setIsPlaying(true)).catch(() => { });
             });
         }
       });
@@ -173,7 +173,7 @@ const LivePlayer = forwardRef(function LivePlayer({ channel, onPreviousChannel, 
         video.play().then(() => setIsPlaying(true)).catch(() => {
           video.muted = true;
           setIsMuted(true);
-          video.play().catch(() => {});
+          video.play().catch(() => { });
         });
       });
 
@@ -210,7 +210,7 @@ const LivePlayer = forwardRef(function LivePlayer({ channel, onPreviousChannel, 
     triggerShowControls();
 
     if (video.paused) {
-      video.play().then(() => setIsPlaying(true)).catch(() => {});
+      video.play().then(() => setIsPlaying(true)).catch(() => { });
     } else {
       video.pause();
       setIsPlaying(false);
@@ -260,7 +260,7 @@ const LivePlayer = forwardRef(function LivePlayer({ channel, onPreviousChannel, 
   const exitFullscreen = useCallback(() => {
     if (!document.fullscreenElement && !document.webkitFullscreenElement) return;
     const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
-    exit?.call(document).catch(() => {});
+    exit?.call(document).catch(() => { });
   }, []);
 
   const toggleFullscreen = useCallback(() => {

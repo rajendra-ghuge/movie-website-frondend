@@ -212,7 +212,7 @@ const readCache = (k, tK) => {
       const parsed = JSON.parse(data);
       if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
-  } catch {}
+  } catch { }
   return null;
 };
 
@@ -227,7 +227,7 @@ const writeCache = (k, tK, data) => {
       sessionStorage.setItem(k, sData);
       sessionStorage.setItem(tK, sTime);
     }
-  } catch {}
+  } catch { }
 };
 
 /**
@@ -241,7 +241,7 @@ export async function fetchLiveChannels(countryCode = 'in') {
     if (Array.isArray(cfg?.favorite_channels) && cfg.favorite_channels.length > 0) {
       favoriteList = cfg.favorite_channels;
     }
-  } catch {}
+  } catch { }
 
   const url = getLiveTvM3uUrl(countryCode);
   const urlSig = url.replace(/[^a-zA-Z0-9]/g, '_').slice(-20);
