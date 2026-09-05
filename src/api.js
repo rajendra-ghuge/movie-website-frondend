@@ -1,11 +1,12 @@
 import axios from 'axios';
 
-const USE_DYNAMIC_API_URL = import.meta.env.VITE_USE_DYNAMIC_API_URL !== 'false';
+const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {};
+const USE_DYNAMIC_API_URL = env.VITE_USE_DYNAMIC_API_URL !== 'false';
 
 // 1. Get initial URL from localStorage or environment variable (ZERO DELAY)
 const INITIAL_API_URL = USE_DYNAMIC_API_URL
-    ? localStorage.getItem('dynamic_api_url') || import.meta.env.VITE_API_URL
-    : import.meta.env.VITE_API_URL;
+    ? (typeof localStorage !== 'undefined' ? localStorage.getItem('dynamic_api_url') : null) || env.VITE_API_URL || ''
+    : env.VITE_API_URL || '';
 
 const api = axios.create({
     baseURL: INITIAL_API_URL,
@@ -15,7 +16,7 @@ const api = axios.create({
 const getApiRootUrl = () => {
     const baseUrl = USE_DYNAMIC_API_URL
         ? api.defaults.baseURL
-        : import.meta.env.VITE_API_URL;
+        : (env.VITE_API_URL || '');
     return baseUrl.replace(/\/proxy\/?$/, '');
 };
 
@@ -33,7 +34,7 @@ export const syncDynamicConfig = async () => {
     try {
         if (!USE_DYNAMIC_API_URL) return;
 
-        const configUrl = import.meta.env.VITE_SERVER_CONFIG_URL;
+        const configUrl = env.VITE_SERVER_CONFIG_URL;
         if (!configUrl) return;
 
         const res = await axios.get(configUrl);
@@ -74,6 +75,97 @@ api.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+export const DEFAULT_CONFIG = {
+    api_base_url: env.VITE_API_URL || '',
+    default_server: 11,
+    Enable_livetv: true,
+    Enable_chatbot: false,
+    servers: [
+        { id: 4, label: 'S4 - Recommended' },
+        { id: 1, label: 'S1' },
+        { id: 2, label: 'S2' },
+        { id: 3, label: 'S3' },
+        { id: 5, label: 'S5-indian' },
+        { id: 6, label: 'S6' },
+        { id: 7, label: 'S7-hindi dubbed' },
+        { id: 8, label: 'S8' },
+        { id: 9, label: 'S9' },
+        { id: 10, label: 'S10' },
+        { id: 11, label: 'S11' },
+        { id: 12, label: 'S12' },
+        { id: 13, label: 'S13' },
+        { id: 14, label: 'S14' }
+    ],
+    movie: {
+        5: "https://vidlux.site/embed/movie/{id}",
+        1: "https://vidsrc.cc/v3/embed/movie/{id}?autoPlay=1&muted=1",
+        2: "https://vidrock.net/movie/{id}",
+        3: "https://vidsrc.me/embed/movie?tmdb={id}&autoplay=1",
+        4: "https://player.videasy.net/movie/{id}?autoplay=1",
+        6: "https://vidlink.pro/movie/{id}?title=true&poster=true&autoplay=true&muted=true",
+        7: "https://www.vidsrc.wtf/api/2/movie/?id={id}-{slug}&autoplay=1",
+        8: "https://www.vidking.net/embed/movie/{id}?autoplay=1",
+        9: "https://vidup.to/movie/{id}?autoPlay=true",
+        10: "https://vidsrc.wtf/api/3/movie/?id={id}&autoplay=1",
+        11: "https://peachify.top/embed/movie/{id}?dub=Hindi&sub=English",
+        12: "https://111movies.com/movie/{id}",
+        13: "https://player.vidzee.wtf/embed/movie/{id}?sr=7&autoplay=true",
+        14: "https://screenscape.me/embed?tmdb={id}&type=movie&lan=hi"
+    },
+    tv: {
+        5: "https://vidlux.site/embed/tv/{id}/{s}/{e}",
+        1: "https://vidsrc.cc/v3/embed/tv/{id}/{s}/{e}?autoPlay=1&muted=1",
+        2: "https://s.vdrk.site/csubtv.html?id={id}&s={s}&e={e}",
+        3: "https://vidsrc.me/embed/tv?tmdb={id}&season={s}&episode={e}&autoplay=1",
+        4: "https://player.videasy.net/tv/{id}/{s}/{e}?nextEpisode=true&episodeSelector=true&autoplay=1",
+        6: "https://vidlink.pro/tv/{id}/{s}/{e}?title=true&poster=true&autoplay=true&muted=true&nextbutton=true",
+        7: "https://www.vidsrc.wtf/api/2/tv/?id={id}&s={s}&e={e}&autoplay=1",
+        8: "https://www.vidking.net/embed/tv/{id}-{slug}/{s}/{e}?autoplay=1",
+        9: "https://vidup.to/tv/{id}/{s}/{e}?autoPlay=true",
+        10: "https://vidsrc.wtf/api/3/tv/?id={id}&s={s}&e={e}&autoplay=1",
+        11: "https://peachify.top/embed/tv/{id}/{s}/{e}?dub=Hindi&sub=English",
+        12: "https://111movies.com/tv/{id}/{s}/{e}",
+        13: "https://player.vidzee.wtf/embed/tv/{id}/{s}/{e}?sr=7&autoplay=true",
+        14: "https://screenscape.me/embed?tmdb={id}&type=tv&s={s}&e={e}&lan=hi"
+    },
+    download: {
+        movie: "https://nxsha.space/dl/movie/{id}",
+        tv: "https://web.nxsha.app/dl/tv/{id}/{s}/{e}"
+    },
+    favorite_channels: [
+        // ── Famous Marathi Channels ──
+        "Star Pravah HD",
+        "Zee Marathi HD",
+        "Zee 24 Taas",
+        "ABP Majha",
+        "TV9 Marathi",
+        "News18 Marathi",
+        "NDTV Marathi",
+        "Fakt Marathi",
+        // ── Famous Hindi Movies & Entertainment ──
+        "Star Gold HD",
+        "Star Gold 2 HD",
+        "Star Gold Select HD",
+        "Zee Cinema",
+        "Star Plus",
+        "Colors HD",
+        "Colors Cineplex HD",
+        "Sony Entertainment Television HD",
+        // ── Sports & Music ──
+        "9XM",
+        "9X Jalwa",
+        "9X Jhakaas",
+        // ── News ──
+        "Aaj Tak HD",
+        "ABP News",
+        "Zee News"]
+};
+
+let inFlightConfigPromise = null;
+const CONFIG_CACHE_KEY = 'cached_server_config';
+const CONFIG_CACHE_TIME_KEY = 'cached_server_config_time';
+const CONFIG_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour cache
 
 export const movieApi = {
     getMovie: (id, params = {}) => api.get(`/movie/${id}`, { params }),
@@ -117,85 +209,79 @@ export const movieApi = {
         return `${api.defaults.baseURL}/image/${size}/${cleanPath}`;
     },
     getServerConfig: async () => {
-        const DEFAULT_CONFIG = {
-            api_base_url: import.meta.env.VITE_API_URL,
-            default_server: 11,
-            servers: [
-                { id: 4, label: 'S4 - Recommended' },
-                { id: 1, label: 'S1' },
-                { id: 2, label: 'S2' },
-                { id: 3, label: 'S3' },
-                { id: 5, label: 'S5-indian' },
-                { id: 6, label: 'S6' },
-                { id: 7, label: 'S7-hindi dubbed' },
-                { id: 8, label: 'S8' },
-                { id: 9, label: 'S9' },
-                { id: 10, label: 'S10' },
-                { id: 11, label: 'S11' },
-                { id: 12, label: 'S12' },
-                { id: 13, label: 'S13' },
-                { id: 14, label: 'S14' }
-            ],
-            movie: {
-                5: "https://vidlux.site/embed/movie/{id}",
-                1: "https://vidsrc.cc/v3/embed/movie/{id}?autoPlay=1&muted=1",
-                2: "https://vidrock.net/movie/{id}",
-                3: "https://vidsrc.me/embed/movie?tmdb={id}&autoplay=1",
-                4: "https://player.videasy.net/movie/{id}?autoplay=1",
-                6: "https://vidlink.pro/movie/{id}?title=true&poster=true&autoplay=true&muted=true",
-                7: "https://www.vidsrc.wtf/api/2/movie/?id={id}-{slug}&autoplay=1",
-                8: "https://www.vidking.net/embed/movie/{id}?autoplay=1",
-                9: "https://vidup.to/movie/{id}?autoPlay=true",
-                10: "https://vidsrc.wtf/api/3/movie/?id={id}&autoplay=1",
-                11: "https://peachify.top/embed/movie/{id}?dub=Hindi&sub=English",
-                12: "https://111movies.com/movie/{id}",
-                13: "https://player.vidzee.wtf/embed/movie/{id}?sr=7&autoplay=true",
-                14: "https://screenscape.me/embed?tmdb={id}&type=movie&lan=hi"
-            },
-            tv: {
-                5: "https://vidlux.site/embed/tv/{id}/{s}/{e}",
-                1: "https://vidsrc.cc/v3/embed/tv/{id}/{s}/{e}?autoPlay=1&muted=1",
-                2: "https://s.vdrk.site/csubtv.html?id={id}&s={s}&e={e}",
-                3: "https://vidsrc.me/embed/tv?tmdb={id}&season={s}&episode={e}&autoplay=1",
-                4: "https://player.videasy.net/tv/{id}/{s}/{e}?nextEpisode=true&episodeSelector=true&autoplay=1",
-                6: "https://vidlink.pro/tv/{id}/{s}/{e}?title=true&poster=true&autoplay=true&muted=true&nextbutton=true",
-                7: "https://www.vidsrc.wtf/api/2/tv/?id={id}&s={s}&e={e}&autoplay=1",
-                8: "https://www.vidking.net/embed/tv/{id}-{slug}/{s}/{e}?autoplay=1",
-                9: "https://vidup.to/tv/{id}/{s}/{e}?autoPlay=true",
-                10: "https://vidsrc.wtf/api/3/tv/?id={id}&s={s}&e={e}&autoplay=1",
-                11: "https://peachify.top/embed/tv/{id}/{s}/{e}?dub=Hindi&sub=English",
-                12: "https://111movies.com/tv/{id}/{s}/{e}",
-                13: "https://player.vidzee.wtf/embed/tv/{id}/{s}/{e}?sr=7&autoplay=true",
-                14: "https://screenscape.me/embed?tmdb={id}&type=tv&s={s}&e={e}&lan=hi"
-            },
-            download: {
-                movie: "https://nxsha.space/dl/movie/{id}",
-                tv: "https://web.nxsha.app/dl/tv/{id}/{s}/{e}"
-            }
-        };
-
-        try {
-            const configUrl = import.meta.env.VITE_SERVER_CONFIG_URL;
-            if (!configUrl) return DEFAULT_CONFIG;
-
-            // Bypass axios instance to avoid API_BASE_URL prefixing
-            const res = await axios.get(configUrl);
-            if (isValidServerConfig(res.data)) {
-                return {
-                    ...DEFAULT_CONFIG,
-                    ...res.data,
-                    movie: { ...DEFAULT_CONFIG.movie, ...res.data.movie },
-                    tv: { ...DEFAULT_CONFIG.tv, ...res.data.tv },
-                    download: {
-                        ...DEFAULT_CONFIG.download,
-                        ...(res.data.download || {})
-                    }
-                };
-            }
-            return DEFAULT_CONFIG;
-        } catch {
-            return DEFAULT_CONFIG;
+        // 1. Check in-flight promise to avoid duplicate concurrent network requests
+        if (inFlightConfigPromise) {
+            return inFlightConfigPromise;
         }
+
+        // 2. Check localStorage cache
+        try {
+            if (typeof localStorage !== 'undefined') {
+                const cached = localStorage.getItem(CONFIG_CACHE_KEY);
+                const cachedTime = localStorage.getItem(CONFIG_CACHE_TIME_KEY);
+                if (cached && cachedTime && (Date.now() - parseInt(cachedTime, 10)) < CONFIG_CACHE_TTL_MS) {
+                    const parsed = JSON.parse(cached);
+                    if (isValidServerConfig(parsed)) {
+                        return parsed;
+                    }
+                }
+            }
+        } catch {
+            // Storage access restricted or invalid, continue
+        }
+
+        inFlightConfigPromise = (async () => {
+            try {
+                const configUrl = env.VITE_SERVER_CONFIG_URL;
+                if (!configUrl) return DEFAULT_CONFIG;
+
+                // Bypass axios instance to avoid API_BASE_URL prefixing
+                const res = await axios.get(configUrl);
+                if (isValidServerConfig(res.data)) {
+                    const merged = {
+                        ...DEFAULT_CONFIG,
+                        ...res.data,
+                        movie: { ...DEFAULT_CONFIG.movie, ...res.data.movie },
+                        tv: { ...DEFAULT_CONFIG.tv, ...res.data.tv },
+                        download: {
+                            ...DEFAULT_CONFIG.download,
+                            ...(res.data.download || {})
+                        },
+                        favorite_channels: Array.isArray(res.data.favorite_channels)
+                            ? res.data.favorite_channels
+                            : DEFAULT_CONFIG.favorite_channels,
+                        Enable_livetv: res.data.Enable_livetv !== undefined
+                            ? Boolean(res.data.Enable_livetv)
+                            : (res.data.enable_livetv !== undefined ? Boolean(res.data.enable_livetv) : DEFAULT_CONFIG.Enable_livetv),
+                        Enable_chatbot: res.data.Enable_chatbot !== undefined
+                            ? Boolean(res.data.Enable_chatbot)
+                            : (res.data.enable_chatbot !== undefined
+                                ? Boolean(res.data.enable_chatbot)
+                                : (res.data.unable_chatbot !== undefined
+                                    ? Boolean(res.data.unable_chatbot)
+                                    : DEFAULT_CONFIG.Enable_chatbot))
+                    };
+
+                    try {
+                        if (typeof localStorage !== 'undefined') {
+                            localStorage.setItem(CONFIG_CACHE_KEY, JSON.stringify(merged));
+                            localStorage.setItem(CONFIG_CACHE_TIME_KEY, Date.now().toString());
+                        }
+                    } catch {
+                        // Ignore storage write error
+                    }
+
+                    return merged;
+                }
+                return DEFAULT_CONFIG;
+            } catch {
+                return DEFAULT_CONFIG;
+            } finally {
+                inFlightConfigPromise = null;
+            }
+        })();
+
+        return inFlightConfigPromise;
     },
 };
 

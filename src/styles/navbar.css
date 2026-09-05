@@ -19,10 +19,10 @@
 .nav-links { display: flex; gap: 1.5rem; font-size: 0.9rem; font-weight: 500; }
 .nav-link { color: #ccc; text-decoration: none; font-size: 0.85rem; font-weight: 700; transition: all 0.2s; padding: 0.5rem 0; border-bottom: 2px solid transparent; }
 .nav-link:hover { color: white; border-bottom-color: var(--accent-yellow); }
-.nav-link.active { color: white; border-bottom-color: transparent; }
+.nav-link.active { color: white; border-bottom-color: var(--accent-yellow); }
 .nav-right { display: flex; align-items: center; gap: 1.25rem; color: white; }
 .nav-item-container { position: relative; }
-.nav-dropdown { position: absolute; top: 100%; left: 0; background: #1a1a1a; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; min-width: 180px; padding: 0.5rem 0; z-index: 2000; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; margin-top: 0.5rem; animation: fadeIn 0.2s ease-out; }
+.nav-dropdown { position: absolute; top: 100%; left: 0; background: #1a1a1a; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; min-width: 180px; max-height: 400px; overflow-y: auto; scrollbar-width: thin; padding: 0.5rem 0; z-index: 2000; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; margin-top: 0.5rem; animation: fadeIn 0.2s ease-out; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 .dropdown-item { padding: 0.75rem 1.25rem; color: #ccc; text-decoration: none; font-size: 0.85rem; font-weight: 500; transition: all 0.2s; white-space: nowrap; }
 .dropdown-item:hover { background: rgba(255, 255, 255, 0.05); color: white; padding-left: 1.5rem; }

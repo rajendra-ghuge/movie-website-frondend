@@ -6,6 +6,14 @@ export default defineConfig({
   plugins: [
     react(),
   ],
+  server: {
+    proxy: {
+      '/api/v1/movie': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
+  },
   oxc: {
     minify: {
       compress: {

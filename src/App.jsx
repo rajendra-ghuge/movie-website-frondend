@@ -3,11 +3,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, lazy, Suspense, useRef } from 'react';
 import useTVNavigation from './hooks/useTVNavigation';
 import api from './api';
+import MovieChatbot from './components/MovieChatbot';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const MovieDetailPage = lazy(() => import('./pages/MovieDetailPage'));
 const WatchPage = lazy(() => import('./pages/WatchPage'));
 const DownloadDetailsPage = lazy(() => import('./pages/DownloadDetailsPage'));
+const LiveTVPage = lazy(() => import('./pages/LiveTVPage'));
 
 const getAnalyticsDeviceId = () => {
   try {
@@ -127,8 +129,10 @@ function App() {
             <Route path="/watch/:type/:id" element={<WatchPage />} />
             <Route path="/watch/:type/:id/:season/:episode" element={<WatchPage />} />
             <Route path="/downloads" element={<DownloadDetailsPage />} />
+            <Route path="/live" element={<LiveTVPage />} />
           </Routes>
         </Suspense>
+        <MovieChatbot />
       </BrowserRouter>
     </QueryClientProvider>
   );

@@ -10,13 +10,22 @@ import './styles/watch.css'
 import './styles/downloads.css'
 import './styles/mobile.css'
 import './styles/tv-dpad.css'
+import './styles/chatbot.css'
 import App from './App.jsx'
 
 // Disable TV Browser default spatial navigation & handle digit navigation
 window.addEventListener('keydown', (e) => {
   // Prevent infinite loop from our own synthetic events
   if (!e.isTrusted) return;
- 
+
+  const el = document.activeElement;
+  const isInput = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+
+  // If typing in an input or textarea, let native browser typing and Enter submission happen
+  if (isInput) {
+    return;
+  }
+
   const digitMap = {
     'Enter': 'Enter',
     'Ok': 'Enter',
@@ -29,13 +38,6 @@ window.addEventListener('keydown', (e) => {
     'PageUp': 'ArrowUp',
     'PageDown': 'ArrowDown'
   };
-  const el = document.activeElement;
-  const isInput = el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
-
-  // If typing in an input, let Enter natively submit or close the on-screen keyboard.
-  if (isInput && digitMap[e.key] === 'Enter') {
-    return;
-  }
 
   if (digitMap[e.key]) {
     e.preventDefault();

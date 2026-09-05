@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, ChevronDown, Menu } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { COUNTRIES, CATEGORIES } from '../api/liveTvApi';
+import { movieApi, DEFAULT_CONFIG } from '../api';
 
 /* ─────────────────────────────────────────────────────────
    TV keyboard nav is ONLY active on laptop / TV viewports.
@@ -89,7 +92,7 @@ const Navbar = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeDropdown, setActiveDropdown] = useState(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
-    const [focusedNavIdx, setFocusedNavIdx] = useState(0);
+    const [focusedNavIdx, setFocusedNavIdx] = useState(-1);
 
     const navLinkRefs = useRef([]);
     const searchIconRef = useRef(null);
@@ -97,10 +100,53 @@ const Navbar = () => {
     const query = new URLSearchParams(location.search);
     const currentCat = query.get('cat') || 'home';
 
+    const [searchParams] = useSearchParams();
+    const isLivePage = location.pathname === '/live';
+    const liveCountryCode = searchParams.get('country') || 'in';
+    const liveGenre = searchParams.get('genre') || 'All';
+    const activeCountryObj = COUNTRIES.find(c => c.code.toLowerCase() === liveCountryCode.toLowerCase()) || COUNTRIES[0];
+
+    const updateLiveParam = (key, value) => {
+        const nextParams = new URLSearchParams(location.search);
+        nextParams.set(key, value);
+        navigate(`/live?${nextParams.toString()}`);
+    };
+
     const tvMode = isTV();
     const showDownloads = typeof window !== 'undefined' && !!window.AndroidApp && !tvMode;
 
+    const { data: serverConfig } = useQuery({
+        queryKey: ['server-config'],
+        queryFn: movieApi.getServerConfig,
+        staleTime: 1000 * 60 * 60, // 1 hour (same as WatchPage)
+    });
+
+    const isLiveTvEnabled = serverConfig?.Enable_livetv ?? serverConfig?.enable_livetv ?? DEFAULT_CONFIG.Enable_livetv ?? true;
+
     const navLinks = [
+        ...(isLiveTvEnabled ? [
+            { name: 'Live TV', path: '/live', cat: 'live', isLive: true },
+            ...(isLivePage ? [
+                {
+                    name: liveGenre === 'All' ? 'Genre' : `Genre: ${liveGenre}`,
+                    cat: 'live-genre',
+                    dropdown: CATEGORIES.map(cat => ({
+                        name: cat,
+                        path: `/live?country=${encodeURIComponent(liveCountryCode)}&genre=${encodeURIComponent(cat)}`,
+                        action: () => updateLiveParam('genre', cat)
+                    }))
+                },
+                {
+                    name: `${activeCountryObj.flag} ${activeCountryObj.name}`,
+                    cat: 'live-country',
+                    dropdown: COUNTRIES.map(c => ({
+                        name: `${c.flag} ${c.name}`,
+                        path: `/live?country=${encodeURIComponent(c.code)}&genre=${encodeURIComponent(liveGenre)}`,
+                        action: () => updateLiveParam('country', c.code)
+                    }))
+                }
+            ] : [])
+        ] : []),
         { name: 'Trending', path: '/?type=movie&cat=movie', cat: 'movie' },
         {
             name: 'Latest', cat: 'latest',
@@ -180,7 +226,6 @@ const Navbar = () => {
                 { name: 'Zee5', path: '/?provider=232&cat=ott' },
                 { name: 'SonyLIV', path: '/?provider=237&cat=ott' }
             ]
-            
         },
         {
             name: 'Language', cat: 'lang',
@@ -225,9 +270,6 @@ const Navbar = () => {
         if (!isTV()) return;
 
         // CRITICAL: Prevent focus-hijacking.
-        // We only steal focus for a completely new page (pathname change),
-        // or if the focus is currently lost on the <body>. 
-        // If the user already has focus on a video player, button, or card, DO NOT touch it.
         const pathChanged = lastPathname.current !== location.pathname;
         lastPathname.current = location.pathname;
 
@@ -244,16 +286,13 @@ const Navbar = () => {
         const newIdx = matchedIdx >= 0 ? matchedIdx : 0;
         setFocusedNavIdx(newIdx);
 
-        // Slight delay so the new page DOM is ready before we steal focus
         const timer = setTimeout(() => {
-            // Verify focus is still "safe" to steal before doing it
             const stillLost = !document.activeElement || document.activeElement === document.body;
             if (pathChanged || stillLost) {
                 navLinkRefs.current[newIdx]?.focus();
-                // If path changed, we also scroll to top
                 if (pathChanged) window.scrollTo({ top: 0, behavior: 'smooth' });
             }
-        }, 150); // Increased delay slightly for better TV compatibility
+        }, 150);
 
         return () => clearTimeout(timer);
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -270,15 +309,14 @@ const Navbar = () => {
         }
     }, [focusedNavIdx, navLinks.length]);
 
-    // ── Dice helpers (unchanged) ───────────────────────────
     // ── Dropdown selection ─────────────────────────────────
     const handleDropdownSelect = (item) => {
-        if (item.path) {
+        if (item.action) {
+            item.action();
+        } else if (item.path) {
             navigate(item.path);
         }
         setActiveDropdown(null);
-        // After selecting a dropdown item, move the TV focus indicator back to the first nav item.
-        // so only one yellow underline is ever shown at a time.
         if (isTV()) {
             setFocusedNavIdx(0);
             setTimeout(() => navLinkRefs.current[0]?.focus({ preventScroll: true }), 50);
@@ -287,12 +325,10 @@ const Navbar = () => {
 
     const handleDropdownClose = () => {
         setActiveDropdown(null);
-        // Restore focus to the current nav item immediately
         navLinkRefs.current[focusedNavIdx]?.focus({ preventScroll: true });
     };
 
     const handleSearchKeyDown = (e) => {
-        // Prevent Backspace/Escape from bubbling up to handleNavKeyDown
         if (e.key === 'Backspace' || e.key === 'Escape') {
             e.stopPropagation();
         }
@@ -301,16 +337,13 @@ const Navbar = () => {
             e.stopPropagation();
             if (searchQuery.trim()) {
                 if (location.pathname === '/downloads') {
-                    // Contextual search: hit Aoneroom search when on Downloads page
                     navigate(`/downloads?s=${encodeURIComponent(searchQuery.trim())}`);
                 } else {
-                    // Standard search: hit TMDB proxy search
                     navigate(`/?s=${encodeURIComponent(searchQuery.trim())}&cat=search`);
                 }
                 setIsSearchOpen(false);
                 setSearchQuery('');
                 
-                // Reset TV focus to the first nav item when search is executed
                 if (isTV()) {
                     setFocusedNavIdx(0);
                     setTimeout(() => navLinkRefs.current[0]?.focus({ preventScroll: true }), 50);
@@ -328,17 +361,9 @@ const Navbar = () => {
     const handleNavKeyDown = useCallback((e) => {
         if (!isTV()) return;
 
-        // If the TV video player is in interactive/fullscreen mode, completely
-        // ignore all key events so D-pad presses inside the iframe don't
-        // mutate navbar state (focused item, open dropdowns, etc.) in the background.
         if (window.__tvPlayerActive) return;
-
-        // While search is open, global nav keys (Arrows/Enter) should be disabled
-        // to prevent double-navigation or focus jumping.
         if (isSearchOpen) return;
 
-        // While a dropdown is open, only handle Escape/Back here;
-        // everything else is handled inside DropdownMenu.
         if (activeDropdown !== null) {
             if (e.key === 'Escape' || e.key === 'Backspace') {
                 e.preventDefault();
@@ -351,20 +376,25 @@ const Navbar = () => {
 
         if (key === 'ArrowLeft') {
             e.preventDefault();
-            setFocusedNavIdx(i => Math.max(0, i - 1));
+            setFocusedNavIdx(i => i <= 0 ? 0 : i - 1);
 
         } else if (key === 'ArrowRight') {
             e.preventDefault();
-            // Allow navigating to Search button (navLinks.length)
-            setFocusedNavIdx(i => Math.min(navLinks.length, i + 1));
+            setFocusedNavIdx(i => i < 0 ? 0 : Math.min(navLinks.length, i + 1));
 
         } else if (key === 'Enter' || key === 'ArrowDown') {
             e.preventDefault();
+            if (focusedNavIdx < 0) {
+                if (key === 'ArrowDown') {
+                    document.getElementById('tv-grid-focus-anchor')?.focus();
+                }
+                return;
+            }
             const isSearchBtn = focusedNavIdx === navLinks.length;
 
             if (isSearchBtn) {
                 if (key === 'Enter') setIsSearchOpen(true);
-                else { /* ArrowDown from Search also goes to grid */
+                else {
                     document.getElementById('tv-grid-focus-anchor')?.focus();
                 }
                 return;
@@ -372,17 +402,14 @@ const Navbar = () => {
 
             const link = navLinks[focusedNavIdx];
             if (link?.dropdown) {
-                // Open dropdown
                 setActiveDropdown(link.name);
             } else if (key === 'ArrowDown') {
-                // No dropdown — move focus down to the movie grid
                 document.getElementById('tv-grid-focus-anchor')?.focus();
             } else if (link?.path) {
                 navigate(link.path);
             }
 
         } else if (key === 'ArrowUp') {
-            // Already at the top — no-op
             e.preventDefault();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -401,7 +428,14 @@ const Navbar = () => {
                 </Link>
 
                 {/* ── Desktop nav links ── */}
-                <div className="nav-links">
+                <div
+                    className="nav-links"
+                    onBlur={(e) => {
+                        if (!e.currentTarget.contains(e.relatedTarget)) {
+                            setFocusedNavIdx(-1);
+                        }
+                    }}
+                >
                     {navLinks.map((link, idx) => {
                         const isActive =
                             currentCat === link.cat ||
@@ -424,10 +458,8 @@ const Navbar = () => {
                                     onClick={(e) => {
                                         if (link.dropdown) {
                                             e.preventDefault();
-                                            // Mouse click toggles dropdown
                                             setActiveDropdown(isOpen ? null : link.name);
                                         }
-                                        // For non-dropdown links, React Router handles navigation
                                     }}
                                     onKeyDown={(e) => {
                                         if (!tvMode) return;
@@ -440,11 +472,12 @@ const Navbar = () => {
                                     onFocus={() => {
                                         if (tvMode) setFocusedNavIdx(idx);
                                     }}
-                                    // tabIndex: on TV, only the "currently focused" item is
-                                    // tab-reachable so Tab key jumps predictably.
                                     tabIndex={tvMode ? (idx === focusedNavIdx ? 0 : -1) : 0}
                                 >
                                     {link.icon && link.icon}
+                                    {link.isLive && (
+                                        <span style={{ width: '7px', height: '7px', background: '#ef4444', borderRadius: '50%', boxShadow: '0 0 6px #ef4444', display: 'inline-block', marginRight: '6px' }} />
+                                    )}
                                     {link.name && link.name}
                                     {link.dropdown && <ChevronDown size={14} className="ml-1" />}
                                 </Link>
@@ -502,7 +535,7 @@ const Navbar = () => {
             </div>
 
             {/* ══════════════════════════════════════════
-                MOBILE SIDE MENU — completely unchanged
+                MOBILE SIDE MENU
             ══════════════════════════════════════════ */}
             {isMenuOpen && (
                 <div className="mobile-menu-overlay" onClick={() => setIsMenuOpen(false)}>
@@ -524,7 +557,13 @@ const Navbar = () => {
                                                 : navigate(link.path)
                                         }
                                     >
-                                        <span>{link.icon}{link.name}</span>
+                                        <span>
+                                            {link.icon}
+                                            {link.isLive && (
+                                                <span style={{ width: '7px', height: '7px', background: '#ef4444', borderRadius: '50%', boxShadow: '0 0 6px #ef4444', display: 'inline-block', marginRight: '6px' }} />
+                                            )}
+                                            {link.name}
+                                        </span>
                                         {link.dropdown && (
                                             <ChevronDown
                                                 size={16}
@@ -539,6 +578,10 @@ const Navbar = () => {
                                                     key={subItem.name}
                                                     to={subItem.path || '#'}
                                                     className="mobile-dropdown-item"
+                                                    onClick={() => {
+                                                        if (subItem.action) subItem.action();
+                                                        setIsMenuOpen(false);
+                                                    }}
                                                 >
                                                     {subItem.name}
                                                 </Link>
