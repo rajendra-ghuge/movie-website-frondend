@@ -245,23 +245,75 @@ const LivePlayer = forwardRef(function LivePlayer({ channel, onPreviousChannel, 
     });
   }, [triggerShowControls]);
 
-  // ── Fullscreen Controls ────────────────────────────────────
-  const enterFullscreen = useCallback(() => {
-    const wrapper = playerWrapperRef.current;
-    if (!wrapper || document.fullscreenElement) return;
-    const req = wrapper.requestFullscreen || wrapper.webkitRequestFullscreen || wrapper.mozRequestFullScreen || wrapper.msRequestFullscreen;
-    if (req) {
-      req.call(wrapper).catch(() => videoRef.current?.webkitEnterFullscreen?.());
-    } else {
-      videoRef.current?.webkitEnterFullscreen?.();
+  // ── Screen Orientation Helpers ────────────────────────────
+  const lockLandscape = useCallback(async () => {
+    try {
+      if (window.screen?.orientation?.lock) {
+        await window.screen.orientation.lock('landscape');
+      } else if (window.screen?.lockOrientation) {
+        window.screen.lockOrientation('landscape');
+      } else if (window.screen?.mozLockOrientation) {
+        window.screen.mozLockOrientation('landscape');
+      } else if (window.screen?.msLockOrientation) {
+        window.screen.msLockOrientation('landscape');
+      }
+    } catch {
+      // Ignored if browser/OS or security policy restricts orientation lock
     }
   }, []);
 
+  const unlockOrientation = useCallback(() => {
+    try {
+      if (window.screen?.orientation?.unlock) {
+        window.screen.orientation.unlock();
+      } else if (window.screen?.unlockOrientation) {
+        window.screen.unlockOrientation();
+      } else if (window.screen?.mozUnlockOrientation) {
+        window.screen.mozUnlockOrientation();
+      } else if (window.screen?.msUnlockOrientation) {
+        window.screen.msUnlockOrientation();
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  // ── Fullscreen Controls ────────────────────────────────────
+  const enterFullscreen = useCallback(async () => {
+    const wrapper = playerWrapperRef.current;
+    const video = videoRef.current;
+    if (!wrapper) return;
+
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      await lockLandscape();
+      return;
+    }
+
+    const req = wrapper.requestFullscreen || wrapper.webkitRequestFullscreen || wrapper.mozRequestFullScreen || wrapper.msRequestFullscreen;
+    if (req) {
+      try {
+        await req.call(wrapper);
+        await lockLandscape();
+      } catch {
+        if (video?.webkitEnterFullscreen) {
+          try {
+            video.webkitEnterFullscreen();
+          } catch { }
+        }
+      }
+    } else if (video?.webkitEnterFullscreen) {
+      try {
+        video.webkitEnterFullscreen();
+      } catch { }
+    }
+  }, [lockLandscape]);
+
   const exitFullscreen = useCallback(() => {
+    unlockOrientation();
     if (!document.fullscreenElement && !document.webkitFullscreenElement) return;
     const exit = document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen;
     exit?.call(document).catch(() => { });
-  }, []);
+  }, [unlockOrientation]);
 
   const toggleFullscreen = useCallback(() => {
     if (document.fullscreenElement || isFullscreen) {
@@ -281,7 +333,13 @@ const LivePlayer = forwardRef(function LivePlayer({ channel, onPreviousChannel, 
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setIsFullscreen(Boolean(document.fullscreenElement || document.webkitFullscreenElement));
+      const activeFs = Boolean(document.fullscreenElement || document.webkitFullscreenElement);
+      setIsFullscreen(activeFs);
+      if (activeFs) {
+        lockLandscape();
+      } else {
+        unlockOrientation();
+      }
     };
 
     document.addEventListener('fullscreenchange', handleFullscreenChange);
@@ -289,8 +347,28 @@ const LivePlayer = forwardRef(function LivePlayer({ channel, onPreviousChannel, 
     return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange);
       document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      unlockOrientation();
     };
-  }, []);
+  }, [lockLandscape, unlockOrientation]);
+
+  // Handle native iOS video fullscreen events
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const onBegin = () => setIsFullscreen(true);
+    const onEnd = () => {
+      setIsFullscreen(false);
+      unlockOrientation();
+    };
+
+    video.addEventListener('webkitbeginfullscreen', onBegin);
+    video.addEventListener('webkitendfullscreen', onEnd);
+    return () => {
+      video.removeEventListener('webkitbeginfullscreen', onBegin);
+      video.removeEventListener('webkitendfullscreen', onEnd);
+    };
+  }, [unlockOrientation]);
 
   // ── TV Remote & Keyboard Navigation ────────────────────────
   useEffect(() => {
