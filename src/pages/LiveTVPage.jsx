@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Search, X, Tv, Radio, Sparkles, Filter, ChevronRight, Globe, AlertCircle, Star } from 'lucide-react';
 import { fetchLiveChannels, COUNTRIES, CATEGORIES } from '../api/liveTvApi';
@@ -20,12 +20,6 @@ export default function LiveTVPage() {
     staleTime: 1000 * 60 * 60, // 1 hour (shared across WatchPage, Navbar, LiveTVPage)
   });
   const isLiveTvEnabled = serverConfig?.Enable_livetv ?? serverConfig?.enable_livetv ?? DEFAULT_CONFIG.Enable_livetv ?? true;
-
-  useEffect(() => {
-    if (isLiveTvEnabled === false) {
-      navigate('/', { replace: true });
-    }
-  }, [isLiveTvEnabled, navigate]);
 
   const [channels, setChannels] = useState([]);
   const [isLoadingChannels, setIsLoadingChannels] = useState(true);
@@ -51,6 +45,7 @@ export default function LiveTVPage() {
 
   // ── 1. Fetch channels on country change ───────────────────
   useEffect(() => {
+    if (isLiveTvEnabled === false) return;
     let isMounted = true;
     setIsLoadingChannels(true);
     setFetchError(null);
@@ -197,6 +192,10 @@ export default function LiveTVPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [filteredChannels, focusedChannelIdx, handlePreviousChannel, handleNextChannel, activeChannel, handleSelectAndPlayChannel]);
+
+  if (isLiveTvEnabled === false) {
+    return <Navigate to="/" replace />;
+  }
 
   return (
     <div className="livetv-page">
