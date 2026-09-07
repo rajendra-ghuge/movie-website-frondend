@@ -102,20 +102,28 @@ const LivePlayer = forwardRef(function LivePlayer({ channel, onPreviousChannel, 
     if (Hls.isSupported()) {
       const hls = new Hls({
         enableWorker: true,
-        lowLatencyMode: true,
-        backBufferLength: 10,
-        maxBufferLength: 20,
-        maxMaxBufferLength: 30,
-        maxBufferSize: 20 * 1000 * 1000,
-        liveSyncDurationCount: 2,
-        liveMaxLatencyDurationCount: 5,
-        manifestLoadingTimeOut: 5000,
-        manifestLoadingMaxRetry: 2,
-        levelLoadingTimeOut: 5000,
-        levelLoadingMaxRetry: 2,
-        fragLoadingTimeOut: 5000,
-        fragLoadingMaxRetry: 2,
+        lowLatencyMode: false,
+        backBufferLength: 30,
+        maxBufferLength: 60,
+        maxMaxBufferLength: 120,
+        maxBufferSize: 80 * 1000 * 1000,
+        liveSyncDurationCount: 4,
+        liveMaxLatencyDurationCount: 10,
+        liveDurationInfinity: true,
+        manifestLoadingTimeOut: 15000,
+        manifestLoadingMaxRetry: 6,
+        manifestLoadingRetryDelay: 1000,
+        levelLoadingTimeOut: 15000,
+        levelLoadingMaxRetry: 6,
+        fragLoadingTimeOut: 25000,
+        fragLoadingMaxRetry: 8,
+        fragLoadingRetryDelay: 1000,
+        maxBufferHole: 0.5,
+        highBufferWatchdogPeriod: 2,
+        nudgeOffset: 0.2,
+        nudgeMaxRetry: 5,
         startFragPrefetch: true,
+        progressive: true,
       });
 
       hlsRef.current = hls;
@@ -148,15 +156,27 @@ const LivePlayer = forwardRef(function LivePlayer({ channel, onPreviousChannel, 
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.warn('LivePlayer: Network error, attempting rapid reload...', data);
+              console.warn('LivePlayer: Network blip on HD chunk, retrying load...', data);
               hls.startLoad();
               break;
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.warn('LivePlayer: Media decoder error, recovering...', data);
-              hls.recoverMediaError();
+              console.warn('LivePlayer: Media decode hiccup, attempting auto-recovery...', data);
+              if (!hls._recoveryCount) hls._recoveryCount = 0;
+              hls._recoveryCount++;
+
+              if (hls._recoveryCount === 1) {
+                hls.recoverMediaError();
+              } else if (hls._recoveryCount === 2) {
+                hls.swapAudioCodec();
+                hls.recoverMediaError();
+              } else {
+                // If decoder stuck, reload from current buffer without crashing
+                hls.startLoad();
+                hls._recoveryCount = 0;
+              }
               break;
             default:
-              console.error('LivePlayer: Unrecoverable stream error:', data);
+              console.error('LivePlayer: Fatal stream error:', data);
               hls.destroy();
               setHasError(true);
               setIsLoading(false);
