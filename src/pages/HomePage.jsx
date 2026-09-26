@@ -137,6 +137,7 @@ const HomePage = () => {
 
         if (!lang && !genre && !provider && !s && !k && !cat) {
             params.with_origin_country = 'IN';
+            params.without_genres = '10766,10764,10767,10763';
             params.sort_by = 'popularity.desc';
             params['first_air_date.lte'] = today;
             return movieApi.discoverBoth(params);
