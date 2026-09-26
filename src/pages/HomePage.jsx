@@ -136,7 +136,7 @@ const HomePage = () => {
         }
 
         if (!lang && !genre && !provider && !s && !k && !cat) {
-            params.with_original_language = 'hi';
+            params.with_origin_country = 'IN';
             params.sort_by = 'popularity.desc';
             params['first_air_date.lte'] = today;
             return movieApi.discoverBoth(params);
