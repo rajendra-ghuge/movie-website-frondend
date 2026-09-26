@@ -40,8 +40,8 @@ const WatchPage = () => {
 
     // UI State
     const [selectedServer, setSelectedServer] = useState(FALLBACK_DEFAULT_SERVER);
-    const [selectedSeason, setSelectedSeason] = useState(parseInt(sParam) || 1);
-    const [selectedEpisode, setSelectedEpisode] = useState(parseInt(eParam) || (type === 'tv' ? 1 : null));
+    const [selectedSeason, setSelectedSeason] = useState(parseInt(sParam) || null);
+    const [selectedEpisode, setSelectedEpisode] = useState(parseInt(eParam) || (type === 'tv' ? (sParam ? 1 : null) : null));
 
     // TV Navigation State
     const [activeSection, setActiveSection] = useState(null); // null = navbar
@@ -72,6 +72,7 @@ const WatchPage = () => {
     const hasUserSelectedServerRef = useRef(false);
     const downloadCloseBtnRef = useRef(null);
     const retryButtonRef = useRef(null);
+    const lastInitializedTvIdRef = useRef(null);
 
     // ── Data Fetching ──────────────────────────────────────
     const { data: detail, isLoading: isDetailLoading, isFetching: isDetailFetching, refetch: refetchDetail } = useQuery({
@@ -206,7 +207,7 @@ const WatchPage = () => {
     // not on every scroll/focus re-render.
     const iframeSrc = useMemo(() => {
         if (!serverConfig) return '';
-        if (type === 'tv' && !selectedEpisode) return '';
+        if (type === 'tv' && (!selectedEpisode || !selectedSeason)) return '';
 
         let template = type === 'movie'
             ? serverConfig.movie[selectedServer]
@@ -245,6 +246,20 @@ const WatchPage = () => {
     const availableSeasons = useMemo(() => {
         return detail?.seasons?.filter(s => s.season_number !== 0) || [];
     }, [detail]);
+
+    useEffect(() => {
+        if (type !== 'tv') return;
+        if (sParam) {
+            setSelectedSeason(parseInt(sParam));
+            setSelectedEpisode(parseInt(eParam) || 1);
+            lastInitializedTvIdRef.current = id;
+        } else if (availableSeasons.length > 0 && lastInitializedTvIdRef.current !== id) {
+            lastInitializedTvIdRef.current = id;
+            const latest = availableSeasons[availableSeasons.length - 1].season_number;
+            setSelectedSeason(latest);
+            setSelectedEpisode(parseInt(eParam) || 1);
+        }
+    }, [type, id, sParam, eParam, availableSeasons]);
 
     const currentSeasonIdx = useMemo(() => {
         return Math.max(0, availableSeasons.findIndex(s => s.season_number === selectedSeason));
@@ -763,13 +778,13 @@ const WatchPage = () => {
                                         }
                                     }}
                                     className={`season-tv-selector ${activeSection === 'seasons' ? 'season-dropdown--tv-focused' : ''} ${isSeasonMenuOpen ? 'is-open' : ''}`}
-                                    aria-label={`Season ${selectedSeason}`}
+                                    aria-label={selectedSeason ? `Season ${selectedSeason}` : 'Season'}
                                     aria-expanded={isSeasonMenuOpen}
                                     role="button"
                                 >
                                     <ChevronLeft size={16} className="season-tv-arrow" />
                                     <span className="season-tv-label">
-                                        {detail.seasons?.find(s => s.season_number === selectedSeason)?.name || `Season ${selectedSeason}`}
+                                        {detail.seasons?.find(s => s.season_number === selectedSeason)?.name || (selectedSeason ? `Season ${selectedSeason}` : 'Season')}
                                     </span>
                                     <ChevronDown size={16} className="season-tv-arrow" />
                                     {isSeasonMenuOpen && (
