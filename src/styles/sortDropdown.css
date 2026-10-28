@@ -1,0 +1,238 @@
+/* ─────────────────────────────────────────────────────────────
+   Sort Dropdown Styles (Beside Header / Title)
+   ───────────────────────────────────────────────────────────── */
+
+.section-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.section-title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.section-title-heading {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+
+/* Sort Dropdown Container */
+.sort-dropdown-container {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Trigger Button */
+.sort-dropdown-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.46rem 1.05rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  outline: none;
+  backdrop-filter: blur(10px);
+  user-select: none;
+}
+
+.sort-dropdown-trigger:hover {
+  border-color: rgba(253, 216, 53, 0.45);
+  background: rgba(255, 255, 255, 0.09);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+}
+
+.sort-dropdown-trigger.open {
+  border-color: var(--accent-yellow, #fdd835);
+  background: rgba(253, 216, 53, 0.08);
+  box-shadow: 0 4px 16px rgba(253, 216, 53, 0.2);
+}
+
+.sort-icon-lead {
+  color: var(--accent-yellow, #fdd835);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.sort-dropdown-trigger:hover .sort-icon-lead {
+  transform: scale(1.12);
+}
+
+.sort-label-prefix {
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 500;
+  margin-right: -0.15rem;
+}
+
+.sort-current-value {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.sort-chevron {
+  color: rgba(255, 255, 255, 0.6);
+  flex-shrink: 0;
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sort-chevron.rotated {
+  transform: rotate(180deg);
+  color: var(--accent-yellow, #fdd835);
+}
+
+/* Floating Dropdown Menu */
+.sort-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 195px;
+  background: #141416;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  padding: 0.45rem;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px);
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  animation: sortPopIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes sortPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.sort-menu-header {
+  padding: 0.35rem 0.75rem 0.25rem;
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 3px;
+}
+
+/* Menu Item */
+.sort-menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.58rem 0.8rem;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.85rem;
+  font-weight: 550;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.16s ease;
+  width: 100%;
+  outline: none;
+  user-select: none;
+}
+
+.sort-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  padding-left: 0.95rem;
+}
+
+.sort-menu-item.active {
+  background: rgba(253, 216, 53, 0.12);
+  color: var(--accent-yellow, #fdd835);
+  font-weight: 750;
+}
+
+.sort-item-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.sort-item-icon {
+  color: rgba(255, 255, 255, 0.5);
+  transition: color 0.15s ease, transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.sort-menu-item:hover .sort-item-icon {
+  color: #ffffff;
+  transform: scale(1.1);
+}
+
+.sort-menu-item.active .sort-item-icon {
+  color: var(--accent-yellow, #fdd835);
+}
+
+.sort-check {
+  color: var(--accent-yellow, #fdd835);
+  flex-shrink: 0;
+}
+
+/* TV & Accessibility Focus Rings */
+.sort-dropdown-trigger:focus-visible,
+.sort-menu-item:focus-visible {
+  outline: 2px solid var(--accent-yellow, #fdd835);
+  outline-offset: 2px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .section-header-row {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+  }
+
+  .sort-dropdown-trigger {
+    padding: 0.4rem 0.85rem;
+    font-size: 0.8rem;
+  }
+
+  .sort-menu {
+    right: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-title-heading {
+    font-size: 1.1rem;
+  }
+
+  .sort-label-prefix {
+    display: none;
+  }
+}

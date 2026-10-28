@@ -149,38 +149,16 @@ const Navbar = () => {
         ] : []),
         { name: 'Trending', path: '/?type=movie&cat=movie', cat: 'movie' },
         {
-            name: 'Latest', cat: 'latest',
-            dropdown: [
-                { name: 'All Latest', path: '/?latest=all&cat=latest' },
-                { name: 'OTT', path: '/?latest=ott&cat=latest' },
-                { name: 'Theatrical', path: '/?latest=theatrical&cat=latest' }
-            ]
-        },
-        {
-            name: 'Top Rated', cat: 'top',
-            dropdown: [
-                { name: 'All Top Rated', path: '/?cat=top' },
-                { name: 'Top Movies', path: '/?type=movie&cat=top' },
-                { name: 'Top TV Shows', path: '/?type=tv&cat=top' },
-                { name: 'Top Indian Movies', path: '/?type=movie&lang=hi&cat=top' },
-                { name: 'Top Hollywood Movies', path: '/?type=movie&lang=en&cat=top' },
-                { name: 'Top Hollywood Shows', path: '/?type=tv&lang=en&cat=top' },
-                { name: 'Top Rated K-Dramas', path: '/?type=tv&lang=ko&cat=top' }
-            ]
-        },
-        {
             name: 'Anime', cat: 'anime',
             dropdown: [
                 { name: 'All Anime', path: '/?lang=ja&genre=16&cat=anime' },
                 { name: 'Anime Movies', path: '/?type=movie&lang=ja&genre=16&cat=anime' },
-                { name: 'Anime Series', path: '/?type=tv&lang=ja&genre=16&cat=anime' },
-                { name: 'Top Rated Anime', path: '/?type=tv&lang=ja&genre=16&sort=vote_average.desc&cat=anime' }
+                { name: 'Anime Series', path: '/?type=tv&lang=ja&genre=16&cat=anime' }
             ]
         },
         {
             name: 'Web Series', path: '/?type=tv&cat=tv', cat: 'tv',
             dropdown: [
-                { name: 'Latest Web Series', path: '/?type=tv&cat=tv' },
                 { name: 'Indian', path: '/?type=tv&lang=hi&cat=tv_hi' },
                 { name: 'Hollywood', path: '/?type=tv&lang=en&cat=tv_en' }
             ]
@@ -245,67 +223,76 @@ const Navbar = () => {
         ...(showDownloads ? [{ name: 'Downloader', path: '/downloads', cat: 'downloads' }] : [])
     ];
 
-    // Sync native DOM focus with the visual TV focus index
-    useEffect(() => {
-        const tvMode = isTV();
-        if (!tvMode || activeDropdown !== null || isSearchOpen) return;
-        
-        const timer = setTimeout(() => {
-            if (focusedNavIdx === navLinks.length) {
-                searchIconRef.current?.focus();
-            } else {
-                navLinkRefs.current[focusedNavIdx]?.focus();
-            }
-        }, 100);
-        return () => clearTimeout(timer);
-    }, [focusedNavIdx, activeDropdown, isSearchOpen, navLinks.length]);
+    // Helper to determine which nav link corresponds to the current route
+    const isLinkActive = useCallback((link) => {
+        if (link.isLive) {
+            return location.pathname === '/live';
+        }
+        if (link.cat === 'tv') {
+            return currentCat?.startsWith('tv') || query.get('type') === 'tv';
+        }
+        if (link.cat === 'hi') {
+            return (currentCat === 'hi' || query.get('lang') === 'hi') && query.get('type') !== 'tv';
+        }
+        if (link.cat === 'en') {
+            return (currentCat === 'en' || query.get('lang') === 'en') && query.get('type') !== 'tv';
+        }
+        if (link.cat === 'anime') {
+            return currentCat === 'anime' || currentCat === '16' || query.get('genre') === '16';
+        }
+        if (link.cat === 'ott') {
+            return currentCat === 'ott' || Boolean(query.get('provider'));
+        }
+        if (link.cat === 'lang') {
+            return currentCat === 'lang';
+        }
+        if (link.cat === 'movie') {
+            return currentCat === 'movie';
+        }
+        if (link.cat === 'downloads' || link.path === '/downloads') {
+            return location.pathname === '/downloads';
+        }
+        return false;
+    }, [currentCat, location.pathname, query]);
 
-    // ── After every route change: close menus & restore nav focus ──
+    const isFirstLoad = useRef(true);
     const lastPathname = useRef(location.pathname);
 
+    // ── After route change: close menus & only update TV focus if navigating via keyboard ──
     useEffect(() => {
         setIsMenuOpen(false);
         setActiveDropdown(null);
 
+        // Never steal focus or default-focus Live TV on page load or reload
+        if (isFirstLoad.current) {
+            isFirstLoad.current = false;
+            return;
+        }
+
         if (!isTV()) return;
 
-        // CRITICAL: Prevent focus-hijacking.
         const pathChanged = lastPathname.current !== location.pathname;
         lastPathname.current = location.pathname;
 
-        const isFocusLost = !document.activeElement || document.activeElement === document.body;
-        if (!pathChanged && !isFocusLost) return;
-
-        // Find which nav item matches the new route
-        const matchedIdx = navLinks.findIndex(link => {
-            if (link.cat === currentCat) return true;
-            if (link.path === location.pathname) return true;
-            return false;
-        });
-
-        const newIdx = matchedIdx >= 0 ? matchedIdx : 0;
-        setFocusedNavIdx(newIdx);
-
-        const timer = setTimeout(() => {
-            const stillLost = !document.activeElement || document.activeElement === document.body;
-            if (pathChanged || stillLost) {
-                navLinkRefs.current[newIdx]?.focus();
-                if (pathChanged) window.scrollTo({ top: 0, behavior: 'smooth' });
+        const matchedIdx = navLinks.findIndex(link => isLinkActive(link));
+        if (matchedIdx >= 0) {
+            setFocusedNavIdx(matchedIdx);
+            if (pathChanged) {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
             }
-        }, 150);
-
-        return () => clearTimeout(timer);
+        } else {
+            setFocusedNavIdx(-1);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.pathname, location.search]);
 
-    // ── Sync DOM focus when focusedNavIdx changes via arrow keys ──
+    // ── Sync DOM focus only when user explicitly navigates with arrow keys ──
     useEffect(() => {
-        if (isTV()) {
-            if (focusedNavIdx < navLinks.length) {
-                navLinkRefs.current[focusedNavIdx]?.focus();
-            } else {
-                searchIconRef.current?.focus();
-            }
+        if (!isTV() || focusedNavIdx < 0) return;
+        if (focusedNavIdx < navLinks.length) {
+            navLinkRefs.current[focusedNavIdx]?.focus();
+        } else {
+            searchIconRef.current?.focus();
         }
     }, [focusedNavIdx, navLinks.length]);
 
@@ -343,7 +330,7 @@ const Navbar = () => {
                 }
                 setIsSearchOpen(false);
                 setSearchQuery('');
-                
+
                 if (isTV()) {
                     setFocusedNavIdx(0);
                     setTimeout(() => navLinkRefs.current[0]?.focus({ preventScroll: true }), 50);
@@ -437,10 +424,7 @@ const Navbar = () => {
                     }}
                 >
                     {navLinks.map((link, idx) => {
-                        const isActive =
-                            currentCat === link.cat ||
-                            link.path === location.pathname ||
-                            false;
+                        const isActive = isLinkActive(link);
                         const isKbFocused = focusedNavIdx === idx && tvMode;
                         const isOpen = activeDropdown === link.name;
 

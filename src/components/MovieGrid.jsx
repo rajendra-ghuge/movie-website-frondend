@@ -1,9 +1,10 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useInfiniteQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
 import { movieApi } from '../api';
 import { GridShimmer } from './Shimmer';
+import { getMovieQuality } from '../utils/quality';
 
 /* ─────────────────────────────────────────────────────────
  * TV keyboard navigation only active on laptop / TV (≥ 1024px).
@@ -31,6 +32,39 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
 
     // Track previous movie count so we know where new cards start after Load More
     const prevMoviesLenRef = useRef(0);
+
+    const searchParams = useMemo(() => new URLSearchParams(locationSearch || ''), [locationSearch]);
+    const isOttContext = useMemo(() => {
+        const cat = searchParams.get('cat');
+        const provider = searchParams.get('provider');
+        const latest = searchParams.get('latest');
+        return Boolean(provider || cat === 'ott' || latest === 'ott');
+    }, [searchParams]);
+
+    const isTheatricalContext = useMemo(() => {
+        return searchParams.get('latest') === 'theatrical';
+    }, [searchParams]);
+
+    // Cached set of recent OTT releases across major Indian streaming platforms (Netflix, Prime, Hotstar, Zee5, SonyLIV)
+    const { data: recentOttData } = useQuery({
+        queryKey: ['recent-ott-ids'],
+        queryFn: async () => {
+            try {
+                const pages = await Promise.all([1, 2, 3, 4, 5].map(page =>
+                    movieApi.discoverMovies({
+                        watch_region: 'IN',
+                        with_watch_providers: '8|119|2336|232|237',
+                        sort_by: 'primary_release_date.desc',
+                        page
+                    })
+                ));
+                return new Set(pages.flatMap(p => (p.data?.results || []).map(m => m.id)));
+            } catch {
+                return new Set();
+            }
+        },
+        staleTime: 1000 * 60 * 60, // 1 hour cache
+    });
 
     const {
         data,
@@ -295,6 +329,11 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
 
                     const mediaType = type || movie.media_type || (movie.title ? 'movie' : 'tv');
                     const isFocused = focusedCardIdx === idx;
+                    const quality = getMovieQuality(movie, {
+                        isOtt: isOttContext,
+                        isTheatrical: isTheatricalContext,
+                        ottMovieIds: recentOttData
+                    });
 
                     return (
                         <div
@@ -312,6 +351,9 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
                                     className="movie-poster"
                                     loading="lazy"
                                 />
+                                <span className={`quality-badge quality-badge--${quality.type}`}>
+                                    {quality.label}
+                                </span>
                             </div>
                             <div className="card-info">
                                 <h3 className="card-name">{movie.title || movie.name}</h3>
