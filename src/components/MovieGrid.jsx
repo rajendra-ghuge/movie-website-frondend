@@ -10,6 +10,9 @@ import { getMovieQuality } from '../utils/quality';
  * TV keyboard navigation only active on laptop / TV (≥ 1024px).
  * Mobile layout & behaviour are completely unchanged.
  * ───────────────────────────────────────────────────────── */
+// Fallback SVG poster for missing/broken poster images
+const FALLBACK_POSTER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='750' fill='%23141416'%3E%3Crect width='500' height='750'/%3E%3Cpath d='M250 310a40 40 0 1 0 0 80 40 40 0 0 0 0-80zm-70 120c0-35 30-60 70-60s70 25 70 60v20H180v-20z' fill='%232a2a30'/%3E%3Ctext x='50%25' y='65%25' fill='%23666' font-family='sans-serif' font-size='22' font-weight='600' text-anchor='middle'%3ENo Poster%3C/text%3E%3C/svg%3E";
+
 const isTVSize = () => {
     if (typeof window === 'undefined') return false;
     const isTVUA = /TV|LargeScreen|AndroidTV|SmartTV/i.test(navigator.userAgent);
@@ -350,6 +353,10 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
                                     alt={movie.title || movie.name}
                                     className="movie-poster"
                                     loading="lazy"
+                                    onError={(e) => {
+                                        e.currentTarget.onerror = null;
+                                        e.currentTarget.src = FALLBACK_POSTER;
+                                    }}
                                 />
                                 <span className={`quality-badge quality-badge--${quality.type}`}>
                                     {quality.label}

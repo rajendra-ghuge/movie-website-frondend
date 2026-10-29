@@ -25,7 +25,21 @@ const SortDropdown = () => {
     const location = useLocation();
     const navigate = useNavigate();
     const [isOpen, setIsOpen] = useState(false);
+    const [menuAlign, setMenuAlign] = useState('right');
     const dropdownRef = useRef(null);
+
+    // Calculate whether dropdown should align to left or right based on screen position
+    useEffect(() => {
+        if (isOpen && dropdownRef.current) {
+            const rect = dropdownRef.current.getBoundingClientRect();
+            // If the button is close to the left edge or on the left half, align left to prevent overflow
+            if (rect.left < 160 || rect.right < 210) {
+                setMenuAlign('left');
+            } else {
+                setMenuAlign('right');
+            }
+        }
+    }, [isOpen]);
 
     const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
 
@@ -129,7 +143,7 @@ const SortDropdown = () => {
             </button>
 
             {isOpen && (
-                <div className="sort-menu" role="menu">
+                <div className={`sort-menu align-${menuAlign}`} role="menu">
                     <div className="sort-menu-header">Sort By</div>
                     {SORT_OPTIONS.map((opt) => {
                         const Icon = opt.icon;

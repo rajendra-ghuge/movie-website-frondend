@@ -108,6 +108,7 @@
   top: calc(100% + 8px);
   right: 0;
   min-width: 195px;
+  max-width: calc(100vw - 24px);
   background: #141416;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 14px;
@@ -119,6 +120,16 @@
   flex-direction: column;
   gap: 3px;
   animation: sortPopIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sort-menu.align-left {
+  left: 0;
+  right: auto;
+}
+
+.sort-menu.align-right {
+  right: 0;
+  left: auto;
 }
 
 @keyframes sortPopIn {
@@ -220,10 +231,6 @@
   .sort-dropdown-trigger {
     padding: 0.4rem 0.85rem;
     font-size: 0.8rem;
-  }
-
-  .sort-menu {
-    right: 0;
   }
 }
 
