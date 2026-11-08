@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, X, ChevronDown, Menu } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Search, X, ChevronDown, Menu, Tv, Smartphone, Download } from 'lucide-react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { COUNTRIES, CATEGORIES } from '../api/liveTvApi';
@@ -66,6 +66,26 @@ const DropdownMenu = ({ items, onSelect, onClose }) => {
                 }
                 sIdx++;
                 const idx = sIdx;
+                if (item.href) {
+                    return (
+                        <a
+                            key={item.name}
+                            ref={el => { itemRefs.current[idx] = el; }}
+                            href={item.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            download
+                            tabIndex={-1}
+                            className={`dropdown-item ${focusedIdx === idx && isTV() ? 'dropdown-item--tv-focused' : ''}`}
+                            onClick={() => onSelect(item, true)}
+                            onFocus={() => setFocusedIdx(idx)}
+                        >
+                            {item.icon && <span className="dropdown-item-icon">{item.icon}</span>}
+                            <span className="dropdown-item-text">{item.name}</span>
+                            {item.badge && <span className="dropdown-item-badge">{item.badge}</span>}
+                        </a>
+                    );
+                }
                 return (
                     <div
                         key={item.name}
@@ -75,7 +95,9 @@ const DropdownMenu = ({ items, onSelect, onClose }) => {
                         onClick={() => onSelect(item)}
                         onFocus={() => setFocusedIdx(idx)}
                     >
-                        {item.name}
+                        {item.icon && <span className="dropdown-item-icon">{item.icon}</span>}
+                        <span className="dropdown-item-text">{item.name}</span>
+                        {item.badge && <span className="dropdown-item-badge">{item.badge}</span>}
                     </div>
                 );
             })}
@@ -97,7 +119,7 @@ const Navbar = () => {
     const navLinkRefs = useRef([]);
     const searchIconRef = useRef(null);
 
-    const query = new URLSearchParams(location.search);
+    const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
     const currentCat = query.get('cat') || 'home';
 
     const [searchParams] = useSearchParams();
@@ -122,6 +144,54 @@ const Navbar = () => {
     });
 
     const isLiveTvEnabled = serverConfig?.Enable_livetv ?? serverConfig?.enable_livetv ?? DEFAULT_CONFIG.Enable_livetv ?? true;
+    const isAppEnabled = serverConfig?.enable_app ?? serverConfig?.Enable_app ?? DEFAULT_CONFIG.enable_app ?? true;
+    const rawAppDownloadLink = serverConfig?.app_download_link ?? DEFAULT_CONFIG.app_download_link;
+
+    const { tvLink, mobileLink } = (() => {
+        let tv = serverConfig?.app_download_link_tv || (typeof rawAppDownloadLink === 'object' ? rawAppDownloadLink?.tv : '');
+        let mobile = serverConfig?.app_download_link_mobile || (typeof rawAppDownloadLink === 'object' ? (rawAppDownloadLink?.mobile || rawAppDownloadLink?.phone) : '');
+
+        if (typeof rawAppDownloadLink === 'string' && rawAppDownloadLink) {
+            if (!tv && !mobile) {
+                if (rawAppDownloadLink.includes('Hdhub_Tv.apk')) {
+                    tv = rawAppDownloadLink;
+                    mobile = rawAppDownloadLink.replace('Hdhub_Tv.apk', 'Hdhub.apk');
+                } else if (rawAppDownloadLink.includes('HdhubTv.apk')) {
+                    tv = rawAppDownloadLink;
+                    mobile = rawAppDownloadLink.replace('HdhubTv.apk', 'Hdhub.apk');
+                } else if (rawAppDownloadLink.includes('Hdhub.apk')) {
+                    mobile = rawAppDownloadLink;
+                    tv = rawAppDownloadLink.replace('Hdhub.apk', 'Hdhub_Tv.apk');
+                } else if (rawAppDownloadLink.includes('arm64-v8a')) {
+                    mobile = rawAppDownloadLink;
+                    tv = rawAppDownloadLink.replace('arm64-v8a', 'armeabi-v7a');
+                } else if (rawAppDownloadLink.includes('armeabi-v7a')) {
+                    tv = rawAppDownloadLink;
+                    mobile = rawAppDownloadLink.replace('armeabi-v7a', 'arm64-v8a');
+                } else {
+                    mobile = rawAppDownloadLink;
+                    tv = rawAppDownloadLink;
+                }
+            } else if (!tv && mobile) {
+                if (mobile.includes('Hdhub.apk')) tv = mobile.replace('Hdhub.apk', 'Hdhub_Tv.apk');
+                else if (mobile.includes('arm64-v8a')) tv = mobile.replace('arm64-v8a', 'armeabi-v7a');
+                else tv = mobile;
+            } else if (tv && !mobile) {
+                if (tv.includes('Hdhub_Tv.apk')) mobile = tv.replace('Hdhub_Tv.apk', 'Hdhub.apk');
+                else if (tv.includes('HdhubTv.apk')) mobile = tv.replace('HdhubTv.apk', 'Hdhub.apk');
+                else if (tv.includes('armeabi-v7a')) mobile = tv.replace('armeabi-v7a', 'arm64-v8a');
+                else mobile = tv;
+            }
+        }
+        return { tvLink: tv, mobileLink: mobile };
+    })();
+
+    const getAbiBadge = (url, fallback = '') => {
+        if (!url) return fallback;
+        if (url.includes('arm64-v8a')) return 'v8a';
+        if (url.includes('armeabi-v7a')) return 'v7a';
+        return fallback;
+    };
 
     const navLinks = [
         ...(isLiveTvEnabled ? [
@@ -220,7 +290,26 @@ const Navbar = () => {
                 { name: 'English', path: '/?lang=en&cat=lang' }
             ]
         },
-        ...(showDownloads ? [{ name: 'Downloader', path: '/downloads', cat: 'downloads' }] : [])
+        ...(showDownloads ? [{ name: 'Downloader', path: '/downloads', cat: 'downloads' }] : []),
+        ...(isAppEnabled && (tvLink || mobileLink) ? [{
+            name: 'Get App',
+            cat: 'get-app',
+            icon: <Download size={14} className="nav-link-icon" />,
+            dropdown: [
+                ...(tvLink ? [{
+                    name: 'For TV',
+                    badge: getAbiBadge(tvLink, 'v7a'),
+                    href: tvLink,
+                    icon: <Tv size={15} />
+                }] : []),
+                ...(mobileLink ? [{
+                    name: 'For Mobile',
+                    badge: getAbiBadge(mobileLink, 'v8a'),
+                    href: mobileLink,
+                    icon: <Smartphone size={15} />
+                }] : [])
+            ]
+        }] : [])
     ];
 
     // Helper to determine which nav link corresponds to the current route
@@ -297,9 +386,13 @@ const Navbar = () => {
     }, [focusedNavIdx, navLinks.length]);
 
     // ── Dropdown selection ─────────────────────────────────
-    const handleDropdownSelect = (item) => {
+    const handleDropdownSelect = (item, isNativeClick = false) => {
         if (item.action) {
             item.action();
+        } else if (item.href) {
+            if (!isNativeClick) {
+                window.open(item.href, '_blank', 'noopener,noreferrer');
+            }
         } else if (item.path) {
             navigate(item.path);
         }
@@ -541,8 +634,8 @@ const Navbar = () => {
                                                 : navigate(link.path)
                                         }
                                     >
-                                        <span>
-                                            {link.icon}
+                                        <span className="mobile-nav-link-title">
+                                            {link.icon && <span className="mobile-nav-icon">{link.icon}</span>}
                                             {link.isLive && (
                                                 <span style={{ width: '7px', height: '7px', background: '#ef4444', borderRadius: '50%', boxShadow: '0 0 6px #ef4444', display: 'inline-block', marginRight: '6px' }} />
                                             )}
@@ -557,19 +650,43 @@ const Navbar = () => {
                                     </div>
                                     {link.dropdown && activeDropdown === link.name && (
                                         <div className="mobile-dropdown-content">
-                                            {link.dropdown.map(subItem => (
-                                                <Link
-                                                    key={subItem.name}
-                                                    to={subItem.path || '#'}
-                                                    className="mobile-dropdown-item"
-                                                    onClick={() => {
-                                                        if (subItem.action) subItem.action();
-                                                        setIsMenuOpen(false);
-                                                    }}
-                                                >
-                                                    {subItem.name}
-                                                </Link>
-                                            ))}
+                                            {link.dropdown.map(subItem => {
+                                                if (subItem.href) {
+                                                    return (
+                                                        <a
+                                                            key={subItem.name}
+                                                            href={subItem.href}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            download
+                                                            className="mobile-dropdown-item mobile-dropdown-download-item"
+                                                            onClick={() => {
+                                                                if (subItem.action) subItem.action();
+                                                                setIsMenuOpen(false);
+                                                            }}
+                                                        >
+                                                            {subItem.icon && <span className="mobile-dropdown-item-icon">{subItem.icon}</span>}
+                                                            <span className="mobile-dropdown-item-text">{subItem.name}</span>
+                                                            {subItem.badge && <span className="mobile-dropdown-item-badge">{subItem.badge}</span>}
+                                                        </a>
+                                                    );
+                                                }
+                                                return (
+                                                    <Link
+                                                        key={subItem.name}
+                                                        to={subItem.path || '#'}
+                                                        className="mobile-dropdown-item"
+                                                        onClick={() => {
+                                                            if (subItem.action) subItem.action();
+                                                            setIsMenuOpen(false);
+                                                        }}
+                                                    >
+                                                        {subItem.icon && <span className="mobile-dropdown-item-icon">{subItem.icon}</span>}
+                                                        <span className="mobile-dropdown-item-text">{subItem.name}</span>
+                                                        {subItem.badge && <span className="mobile-dropdown-item-badge">{subItem.badge}</span>}
+                                                    </Link>
+                                                );
+                                            })}
                                         </div>
                                     )}
                                 </div>

@@ -11,6 +11,7 @@
   .nav-link--tv-focused { color: #ffffff !important; border-bottom: 2px solid var(--accent-yellow) !important; text-shadow: 0 0 12px rgba(253, 216, 53, 0.5); }
   .nav-icon--tv-focused { color: var(--accent-yellow) !important; transform: scale(1.1); filter: drop-shadow(0 0 8px rgba(253, 216, 53, 0.5)); }
   .dropdown-item--tv-focused { background: rgba(253, 216, 53, 0.12) !important; color: #ffffff !important; padding-left: 1.5rem !important; border-left: 3px solid var(--accent-yellow); }
+  .dropdown-item--tv-focused .dropdown-item-badge { background: rgba(253, 216, 53, 0.25) !important; color: var(--accent-yellow) !important; }
 
   /* TV Floating Search Bar */
   .navbar--tv-mode .search-container-nav {

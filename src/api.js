@@ -81,6 +81,8 @@ export const DEFAULT_CONFIG = {
     default_server: 11,
     Enable_livetv: true,
     Enable_chatbot: false,
+    enable_app: true,
+    app_download_link: 'https://github.com/configUrl/domain-updater/releases/download/v1.4/Hdhub.apk',
     servers: [
         { id: 4, label: 'S4 - Recommended' },
         { id: 1, label: 'S1' },
@@ -259,7 +261,13 @@ export const movieApi = {
                                 ? Boolean(res.data.enable_chatbot)
                                 : (res.data.unable_chatbot !== undefined
                                     ? Boolean(res.data.unable_chatbot)
-                                    : DEFAULT_CONFIG.Enable_chatbot))
+                                    : DEFAULT_CONFIG.Enable_chatbot)),
+                        enable_app: res.data.enable_app !== undefined
+                            ? Boolean(res.data.enable_app)
+                            : (res.data.Enable_app !== undefined
+                                ? Boolean(res.data.Enable_app)
+                                : DEFAULT_CONFIG.enable_app),
+                        app_download_link: res.data.app_download_link || DEFAULT_CONFIG.app_download_link,
                     };
 
                     try {
