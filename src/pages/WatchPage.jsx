@@ -1,12 +1,12 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Play, ChevronLeft, ChevronRight, Server, ChevronDown, Download, X, RefreshCw } from 'lucide-react';
 import { movieApi } from '../api';
 import Navbar from '../components/Navbar';
 import Disclaimer from '../components/Disclaimer';
 
-const FALLBACK_DEFAULT_SERVER = 11;
+const FALLBACK_DEFAULT_SERVER = 1;
 
 /* ─────────────────────────────────────────────────────────
  * TV keyboard navigation only active on laptop / TV (≥ 1024px).
@@ -14,8 +14,7 @@ const FALLBACK_DEFAULT_SERVER = 11;
  * ───────────────────────────────────────────────────────── */
 const isTVSize = () => {
     if (typeof window === 'undefined') return false;
-    const isTVUA = /TV|LargeScreen|AndroidTV|SmartTV/i.test(navigator.userAgent);
-    return window.innerWidth >= 1024 || isTVUA;
+    return /TV|LargeScreen|AndroidTV|SmartTV/i.test(navigator.userAgent);
 };
 
 const isConfirmKey = (e) => (
@@ -37,11 +36,19 @@ const isConfirmKey = (e) => (
 const WatchPage = () => {
     const { type, id, season: sParam, episode: eParam } = useParams();
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
 
-    // UI State
-    const [selectedServer, setSelectedServer] = useState(FALLBACK_DEFAULT_SERVER);
-    const [selectedSeason, setSelectedSeason] = useState(parseInt(sParam) || null);
-    const [selectedEpisode, setSelectedEpisode] = useState(parseInt(eParam) || (type === 'tv' ? (sParam ? 1 : null) : null));
+    const targetSeason = parseInt(sParam) || null;
+    const targetEpisode = parseInt(eParam) || (type === 'tv' ? (sParam ? 1 : null) : null);
+
+    // Instant S0 initialization: check if DetailPage already prefetched S0 stream
+    const cachedStream = queryClient.getQueryData(['direct-stream', type, id, targetSeason, targetEpisode]);
+    const hasCachedStream = Boolean(cachedStream?.success && (cachedStream?.embed_url || cachedStream?.stream_url));
+
+    // UI State: If S0 was prefetched on DetailPage, start directly on 0 (S0) with ZERO delay!
+    const [selectedServer, setSelectedServer] = useState(() => (hasCachedStream ? 0 : null));
+    const [selectedSeason, setSelectedSeason] = useState(targetSeason);
+    const [selectedEpisode, setSelectedEpisode] = useState(targetEpisode);
 
     // TV Navigation State
     const [activeSection, setActiveSection] = useState(null); // null = navbar
@@ -49,7 +56,7 @@ const WatchPage = () => {
     const [episodeIdx, setEpisodeIdx] = useState(0);
     const [similarIdx, setSimilarIdx] = useState(0);
     const [isInteracting, setIsInteracting] = useState(false);
-    const [isServersOpen, setIsServersOpen] = useState(isTVSize());
+    const [isServersOpen, setIsServersOpen] = useState(true);
     const [isSeasonMenuOpen, setIsSeasonMenuOpen] = useState(false);
     const [focusedSeasonIdx, setFocusedSeasonIdx] = useState(0);
     const [isMobilePlayerDocked, setIsMobilePlayerDocked] = useState(false);
@@ -106,11 +113,29 @@ const WatchPage = () => {
         enabled: type === 'tv' && !!selectedSeason
     });
 
-    // Reset scroll position on navigation
+    // Reset scroll position and server selection ONLY when navigating to a new movie/show
+    const prevMediaIdRef = useRef(id);
     useEffect(() => {
-        window.scrollTo(0, 0);
-        setIsMobilePlayerDocked(false);
-    }, [type, id, selectedEpisode]);
+        if (prevMediaIdRef.current !== id) {
+            prevMediaIdRef.current = id;
+            window.scrollTo(0, 0);
+            setIsMobilePlayerDocked(false);
+            hasUserSelectedServerRef.current = false;
+            const currentCached = queryClient.getQueryData(['direct-stream', type, id, selectedSeason, selectedEpisode]);
+            const isCurrentCached = Boolean(currentCached?.success && (currentCached?.embed_url || currentCached?.stream_url));
+            setSelectedServer(isCurrentCached ? 0 : null);
+        }
+    }, [id, type, selectedSeason, selectedEpisode, queryClient]);
+
+    // Keep URL in sync with active season/episode without triggering router reloads
+    useEffect(() => {
+        if (type === 'tv' && id && selectedSeason && selectedEpisode) {
+            const newPath = `/watch/${type}/${id}/${selectedSeason}/${selectedEpisode}`;
+            if (window.location.pathname !== newPath) {
+                window.history.replaceState(null, '', newPath);
+            }
+        }
+    }, [type, id, selectedSeason, selectedEpisode]);
 
     useEffect(() => {
         setIsIframeLoading(true);
@@ -193,20 +218,56 @@ const WatchPage = () => {
         staleTime: 1000 * 60 * 60, // 1 hour
     });
 
-    const servers = useMemo(() => serverConfig?.servers || [], [serverConfig]);
+    // Query direct HLS stream to check if S0 is available for this title/episode
+    const { data: directStreamData, isLoading: isStreamLoading } = useQuery({
+        queryKey: ['direct-stream', type, id, selectedSeason, selectedEpisode],
+        queryFn: async () => {
+            const res = await movieApi.getStreamData(type, id, selectedSeason, selectedEpisode);
+            return res.data;
+        },
+        enabled: type === 'movie' || Boolean(selectedEpisode),
+        staleTime: 5 * 60 * 1000,
+    });
+
+    const hasDirectStream = Boolean(directStreamData?.success && (directStreamData?.embed_url || directStreamData?.stream_url));
+
+    // Show S0 ONLY if direct stream is present. Otherwise, show regular server list.
+    const servers = useMemo(() => {
+        const list = serverConfig?.servers || [];
+        const baseServers = list.filter(s => s.id !== 0);
+        if (hasDirectStream) {
+            return [{ id: 0, label: 'S0' }, ...baseServers];
+        }
+        return baseServers;
+    }, [serverConfig, hasDirectStream]);
 
     useEffect(() => {
-        if (!serverConfig || hasUserSelectedServerRef.current) return;
+        if (!serverConfig) return;
 
-        const defaultServer = Number(serverConfig.default_server || FALLBACK_DEFAULT_SERVER);
-        const hasDefaultServer = servers.some(server => server.id === defaultServer);
-        setSelectedServer(hasDefaultServer ? defaultServer : FALLBACK_DEFAULT_SERVER);
-    }, [serverConfig, servers]);
+        // Respect user's explicit manual server selection
+        if (hasUserSelectedServerRef.current) return;
+
+        const configDefault = Number(serverConfig.default_server !== undefined ? serverConfig.default_server : FALLBACK_DEFAULT_SERVER);
+
+        // While still checking if S0 is available, wait so S1 iframe does not start prematurely
+        if (isStreamLoading) {
+            return;
+        }
+
+        if (hasDirectStream) {
+            setSelectedServer(0);
+        } else {
+            setSelectedServer(configDefault);
+        }
+    }, [serverConfig, hasDirectStream, isStreamLoading]);
 
     // Memoized so it only recalculates when player dependencies change,
     // not on every scroll/focus re-render.
     const iframeSrc = useMemo(() => {
-        if (!serverConfig) return '';
+        if (selectedServer === 0) {
+            return directStreamData?.embed_url || directStreamData?.stream_url || '';
+        }
+        if (!serverConfig || !selectedServer) return '';
         if (type === 'tv' && (!selectedEpisode || !selectedSeason)) return '';
 
         let template = type === 'movie'
@@ -220,7 +281,7 @@ const WatchPage = () => {
             .replace('{slug}', slug)
             .replace('{s}', selectedSeason)
             .replace('{e}', selectedEpisode);
-    }, [serverConfig, type, selectedServer, id, slug, selectedSeason, selectedEpisode]);
+    }, [serverConfig, type, selectedServer, id, slug, selectedSeason, selectedEpisode, directStreamData]);
 
     const handleNextEpisode = useCallback(() => {
         if (type !== 'tv') return;
@@ -279,9 +340,9 @@ const WatchPage = () => {
         setTimeout(() => seasonRef.current?.focus(), 0);
     }, []);
 
-    const selectSeason = useCallback((seasonNumber) => {
+    const selectSeason = useCallback((seasonNumber, episodeNumber = 1) => {
         setSelectedSeason(seasonNumber);
-        setSelectedEpisode(null);
+        setSelectedEpisode(episodeNumber);
         setIsSeasonMenuOpen(false);
         setTimeout(() => seasonRef.current?.focus(), 0);
     }, []);
@@ -526,7 +587,6 @@ const WatchPage = () => {
 
         // ── Similar Movies focused ──
         if (activeSection === 'similar') {
-            const COLS = 2; // Recommendations are in a sidebar/list, usually narrower
             if (key === 'ArrowUp') {
                 e.preventDefault();
                 if (type === 'tv') focusSection('episodes', (seasonData?.episodes?.length || 0) - 1);
@@ -635,6 +695,10 @@ const WatchPage = () => {
                                 <h3>Select an episode to start watching</h3>
                                 <p>Season {selectedSeason} is ready</p>
                             </div>
+                        ) : selectedServer === null || (selectedServer === 0 && isStreamLoading) ? (
+                            <div className="player-shimmer shimmer-wrapper" style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
+                            </div>
                         ) : (
                             <>
                                 {isIframeLoading && (
@@ -647,15 +711,15 @@ const WatchPage = () => {
                                     title="Video Player"
                                     className="watch-iframe"
                                     style={{ opacity: isIframeLoading ? 0 : 1, transition: 'opacity 0.3s ease' }}
-                                    allow="autoplay; fullscreen"
+                                    allow="autoplay; encrypted-media; fullscreen; picture-in-picture; clipboard-write"
+                                    referrerPolicy="origin-when-cross-origin"
+                                    loading="lazy"
                                     allowFullScreen
-                                    role="button"
-                                    aria-label="Play Movie"
                                     onLoad={() => setIsIframeLoading(false)}
                                 ></iframe>
                             </>
                         )}
-                        {/* Transparent Bridge: catches the real click */}
+                        {/* Transparent Bridge: catches the real click for external iframes */}
                         {tvMode && !isInteracting && (
                             <button
                                 ref={bridgeRef}

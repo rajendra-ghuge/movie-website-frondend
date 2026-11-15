@@ -9,8 +9,7 @@ import { DetailShimmer } from '../components/Shimmer';
 
 const isTV = () => {
     if (typeof window === 'undefined') return false;
-    const isTVUA = /TV|LargeScreen|AndroidTV|SmartTV/i.test(navigator.userAgent);
-    return window.innerWidth >= 1024 || isTVUA;
+    return /TV|LargeScreen|AndroidTV|SmartTV/i.test(navigator.userAgent);
 };
 
 const MovieDetailPage = () => {
@@ -43,6 +42,17 @@ const MovieDetailPage = () => {
             return res.data;
         },
     });
+
+    // Select the latest season by default to align with WatchPage and the app
+    const regularSeasons = movie?.seasons?.filter(s => s.season_number > 0) || [];
+    const latestSeason = regularSeasons.length > 0
+        ? regularSeasons[regularSeasons.length - 1].season_number
+        : 1;
+    const targetSeason = type === 'tv' ? latestSeason : null;
+
+    const watchUrl = type === 'tv' && targetSeason
+        ? `/watch/${type}/${id}/${targetSeason}/1`
+        : `/watch/${type}/${id}`;
 
     useEffect(() => {
         if ((error || !movie) && !isLoading) {
@@ -194,7 +204,7 @@ const MovieDetailPage = () => {
                 else if (kwCount > 0) focusSection('keywords', 0);
                 else focusSection('trailer');
             } else if (key === 'ArrowUp') { e.preventDefault(); focusNavbar(); }
-            else if (key === 'Enter') { e.preventDefault(); navigate(`/watch/${type}/${id}`); }
+            else if (key === 'Enter') { e.preventDefault(); navigate(watchUrl); }
         } else if (activeSection === 'cast') {
             if (key === 'ArrowLeft') {
                 e.preventDefault();
@@ -291,7 +301,7 @@ const MovieDetailPage = () => {
                 <div className="detail-right">
                     <h1 className="detail-title-large">{title}</h1>
                     <div className="detail-actions">
-                        <Link ref={watchBtnRef} to={`/watch/${type}/${id}`} tabIndex={-1} onFocus={() => tvMode && setActiveSection('watch')} className={`btn-watch${activeSection === 'watch' ? ' btn-watch--tv-focused' : ''}`}><Play size={20} fill="currentColor" /> Watch Now</Link>
+                        <Link ref={watchBtnRef} to={watchUrl} tabIndex={-1} onFocus={() => tvMode && setActiveSection('watch')} className={`btn-watch${activeSection === 'watch' ? ' btn-watch--tv-focused' : ''}`}><Play size={20} fill="currentColor" /> Watch Now</Link>
                         {showDownloads && (
                             <Link to={`/downloads?s=${encodeURIComponent(title)}&type=${encodeURIComponent(type)}${releaseYear ? `&year=${encodeURIComponent(releaseYear)}` : ''}&id=${id}`} className="btn-download-detail"><Download size={20} /> Download</Link>
                         )}

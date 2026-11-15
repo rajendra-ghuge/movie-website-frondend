@@ -78,12 +78,13 @@ api.interceptors.response.use(
 
 export const DEFAULT_CONFIG = {
     api_base_url: env.VITE_API_URL || '',
-    default_server: 11,
+    default_server: 0,
     Enable_livetv: true,
     Enable_chatbot: false,
     enable_app: true,
     app_download_link: 'https://github.com/configUrl/domain-updater/releases/download/v1.4/Hdhub.apk',
     servers: [
+        { id: 0, label: 'S0' },
         { id: 4, label: 'S4 - Recommended' },
         { id: 1, label: 'S1' },
         { id: 2, label: 'S2' },
@@ -172,9 +173,6 @@ const CONFIG_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour cache
 export const movieApi = {
     getMovie: (id, params = {}) => api.get(`/movie/${id}`, { params }),
     getNowPlaying: (params = {}) => api.get('/movie/now_playing', { params }),
-    getVideos: (id) => api.get(`/movie/${id}/videos`),
-    getCredits: (id) => api.get(`/movie/${id}/credits`),
-    getSimilar: (id, params = {}) => api.get(`/movie/${id}/similar`, { params }),
     getKeywords: (id, type = 'movie') => api.get(`/${type}/${id}/keywords`),
     getGenres: (type = 'movie', params = {}) => api.get(`/genre/${type}/list`, { params }),
     getMoviesByKeyword: (id, params = {}) => api.get(`/keyword/${id}/movies`, { params }),
@@ -188,23 +186,11 @@ export const movieApi = {
     getMoviesByCast: (castId, params = {}) => api.get('/discover/both', { params: { ...params, with_cast: castId } }),
     getTvDetail: (id, params = {}) => api.get(`/tv/${id}`, { params }),
     getTvSeason: (id, season, params = {}) => api.get(`/tv/${id}/season/${season}`, { params }),
+    getStreamData: (type, id, season = null, episode = null, source = 'auto') =>
+        api.get(`/stream/${type}/${id}`, { params: { season, episode, source } }),
     searchAoneroom: (keyword, params = {}) => axios.get(`${getApiRootUrl()}/aoneroom/search`, { params: { keyword, ...params } }),
     getAoneroomDetail: (detailPath) => axios.get(`${getApiRootUrl()}/aoneroom/detail`, { params: { detailPath } }),
     getAoneroomDownload: ({ subjectId, detailPath, se = 0, ep = 0 }) => axios.get(`${getApiRootUrl()}/aoneroom/download`, { params: { subjectId, detailPath, se, ep } }),
-    getDownloadLinks: (payload) => api.post('/downloads/links', payload),
-    getDownloadFileUrl: (url, title = 'video', proxyBaseUrl) => {
-        const workerBaseUrl = proxyBaseUrl || import.meta.env.VITE_DOWNLOAD_WORKER_BASE_URL || 'https://dl.gemlelispe.workers.dev';
-        const encodedUrl = encodeURIComponent(url).replace(/%2F/g, '/');
-        return `${workerBaseUrl.replace(/\/$/, '')}/${encodedUrl}?n=${encodeURIComponent(title)}`;
-    },
-    getDownloadFileUrls: (url, title = 'video') => {
-        const primaryProxy = import.meta.env.VITE_DOWNLOAD_WORKER_BASE_URL || 'https://dl.gemlelispe.workers.dev';
-        const backupProxy = import.meta.env.VITE_DOWNLOAD_BACKUP_PROXY_URL || 'https://hellstorm.lol';
-        return {
-            primary: movieApi.getDownloadFileUrl(url, title, primaryProxy),
-            backup: movieApi.getDownloadFileUrl(url, title, backupProxy),
-        };
-    },
     getImageUrl: (path, size = 'original') => {
         if (!path) return "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='750' fill='%23111'%3E%3Crect width='500' height='750'/%3E%3Ctext x='50%25' y='50%25' fill='%23555' font-family='sans-serif' font-size='24' text-anchor='middle' dy='.3em'%3ENo Image%3C/text%3E%3C/svg%3E";
         const cleanPath = path.startsWith('/') ? path.slice(1) : path;
