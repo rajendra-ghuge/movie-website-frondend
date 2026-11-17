@@ -80,6 +80,7 @@ export const DEFAULT_CONFIG = {
     api_base_url: env.VITE_API_URL || '',
     default_server: 0,
     Enable_livetv: true,
+    Enable_serials: true,
     Enable_chatbot: false,
     enable_app: true,
     app_download_link: 'https://github.com/configUrl/domain-updater/releases/download/v1.4/Hdhub.apk',
@@ -241,6 +242,13 @@ export const movieApi = {
                         Enable_livetv: res.data.Enable_livetv !== undefined
                             ? Boolean(res.data.Enable_livetv)
                             : (res.data.enable_livetv !== undefined ? Boolean(res.data.enable_livetv) : DEFAULT_CONFIG.Enable_livetv),
+                        Enable_serials: res.data.Enable_serials !== undefined
+                            ? Boolean(res.data.Enable_serials)
+                            : (res.data.enable_serials !== undefined
+                                ? Boolean(res.data.enable_serials)
+                                : (res.data.enable_serial !== undefined
+                                    ? Boolean(res.data.enable_serial)
+                                    : DEFAULT_CONFIG.Enable_serials)),
                         Enable_chatbot: res.data.Enable_chatbot !== undefined
                             ? Boolean(res.data.Enable_chatbot)
                             : (res.data.enable_chatbot !== undefined
@@ -277,6 +285,14 @@ export const movieApi = {
 
         return inFlightConfigPromise;
     },
+};
+
+export const serialsApi = {
+    getHome: () => api.get('/serials/home').then(res => res.data),
+    getChannelShows: (slug) => api.get(`/serials/channel/${slug}`).then(res => res.data),
+    getShelfEpisodes: (language) => api.get(`/serials/shelf/${language}`).then(res => res.data),
+    getShowEpisodes: (url, offset = 0, season = '1') => api.get('/serials/show', { params: { url, offset, season } }).then(res => res.data),
+    resolveEmbed: (url) => api.get('/serials/resolve', { params: { url } }).then(res => res.data),
 };
 
 export default api;

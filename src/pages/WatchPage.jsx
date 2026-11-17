@@ -1,8 +1,8 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation, Navigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Play, ChevronLeft, ChevronRight, Server, ChevronDown, Download, X, RefreshCw } from 'lucide-react';
-import { movieApi } from '../api';
+import { movieApi, serialsApi, DEFAULT_CONFIG } from '../api';
 import Navbar from '../components/Navbar';
 import Disclaimer from '../components/Disclaimer';
 
@@ -35,9 +35,18 @@ const isConfirmKey = (e) => (
 
 const WatchPage = () => {
     const { type, id, season: sParam, episode: eParam } = useParams();
+    const location = useLocation();
     const navigate = useNavigate();
     const queryClient = useQueryClient();
 
+    const { data: serverConfig } = useQuery({
+        queryKey: ['server-config'],
+        queryFn: movieApi.getServerConfig,
+        staleTime: 1000 * 60 * 60, // 1 hour
+    });
+    const isSerialsEnabled = serverConfig?.Enable_serials ?? serverConfig?.enable_serials ?? serverConfig?.enable_serial ?? DEFAULT_CONFIG.Enable_serials ?? true;
+
+    const isSerial = type === 'serial';
     const targetSeason = parseInt(sParam) || null;
     const targetEpisode = parseInt(eParam) || (type === 'tv' ? (sParam ? 1 : null) : null);
 
@@ -45,8 +54,8 @@ const WatchPage = () => {
     const cachedStream = queryClient.getQueryData(['direct-stream', type, id, targetSeason, targetEpisode]);
     const hasCachedStream = Boolean(cachedStream?.success && (cachedStream?.embed_url || cachedStream?.stream_url));
 
-    // UI State: If S0 was prefetched on DetailPage, start directly on 0 (S0) with ZERO delay!
-    const [selectedServer, setSelectedServer] = useState(() => (hasCachedStream ? 0 : null));
+    // UI State: For serials, always start on server 1 (S1)
+    const [selectedServer, setSelectedServer] = useState(() => (isSerial ? 1 : (hasCachedStream ? 0 : null)));
     const [selectedSeason, setSelectedSeason] = useState(targetSeason);
     const [selectedEpisode, setSelectedEpisode] = useState(targetEpisode);
 
@@ -85,6 +94,18 @@ const WatchPage = () => {
     const { data: detail, isLoading: isDetailLoading, isFetching: isDetailFetching, refetch: refetchDetail } = useQuery({
         queryKey: ['detail', type, id],
         queryFn: async () => {
+            if (isSerial) {
+                const titleStr = location.state?.title || id.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                return {
+                    title: titleStr,
+                    name: titleStr,
+                    overview: `Watch latest episodes of ${titleStr} online in HD on 4KHDHUB.`,
+                    backdrop_path: null,
+                    poster_path: null,
+                    genres: [{ id: 1, name: 'TV Serial' }],
+                    seasons: [{ id: 1, season_number: 1, name: 'Season 1' }],
+                };
+            }
             // Matches the append_to_response used in MovieDetailPage so both pages
             // share the same React Query cache entry without stale-field mismatches.
             const params = { append_to_response: 'videos,credits,external_ids' };
@@ -102,7 +123,7 @@ const WatchPage = () => {
         }
     }, [detail, isDetailLoading]);
 
-
+    // TV Season query for standard TV shows
     const { data: seasonData, isLoading: isSeasonLoading } = useQuery({
         queryKey: ['tv-season', id, selectedSeason],
         queryFn: async () => {
@@ -113,6 +134,97 @@ const WatchPage = () => {
         enabled: type === 'tv' && !!selectedSeason
     });
 
+    // Serial episodes state for Regional TV Serials infinite scroll
+    const [serialEps, setSerialEps] = useState([]);
+    const [hasMoreSerialEps, setHasMoreSerialEps] = useState(false);
+    const [nextSerialOffset, setNextSerialOffset] = useState(null);
+    const [isLoadingMoreSerials, setIsLoadingMoreSerials] = useState(false);
+    const isLoadingMoreSerialsRef = useRef(false);
+
+    // Initial serial episodes query
+    const { data: initialSerialData, isLoading: isSerialLoading } = useQuery({
+        queryKey: ['serial-episodes', id],
+        queryFn: async () => {
+            const res = await serialsApi.getShowEpisodes(id, 0);
+            return res || { episodes: [], has_more: false, next_offset: null };
+        },
+        enabled: isSerial && !!id && isSerialsEnabled !== false,
+        staleTime: 10 * 60 * 1000,
+    });
+
+    // Populate initial serial episodes when query resolves
+    useEffect(() => {
+        if (initialSerialData) {
+            const epList = Array.isArray(initialSerialData)
+                ? initialSerialData
+                : (initialSerialData.episodes || []);
+            setSerialEps(epList);
+            setHasMoreSerialEps(Boolean(initialSerialData.has_more));
+            setNextSerialOffset(initialSerialData.next_offset || null);
+        }
+    }, [initialSerialData]);
+
+    // Handler to load more serial episodes on scroll
+    const handleLoadMoreSerialEpisodes = useCallback(async () => {
+        if (!isSerial || !id || isLoadingMoreSerialsRef.current || !hasMoreSerialEps || nextSerialOffset == null) {
+            return;
+        }
+        isLoadingMoreSerialsRef.current = true;
+        setIsLoadingMoreSerials(true);
+        try {
+            const res = await serialsApi.getShowEpisodes(id, nextSerialOffset, selectedSeason || 1);
+            if (res && res.episodes && res.episodes.length > 0) {
+                setSerialEps(prev => {
+                    const seenUrls = new Set(prev.map(e => e.url));
+                    const newEps = res.episodes.filter(e => !seenUrls.has(e.url));
+                    return [...prev, ...newEps];
+                });
+                setHasMoreSerialEps(Boolean(res.has_more));
+                setNextSerialOffset(res.next_offset || null);
+            } else {
+                setHasMoreSerialEps(false);
+            }
+        } catch (err) {
+            console.error('Failed to load more serial episodes:', err);
+        } finally {
+            isLoadingMoreSerialsRef.current = false;
+            setIsLoadingMoreSerials(false);
+        }
+    }, [isSerial, id, hasMoreSerialEps, nextSerialOffset]);
+
+    // Unified episodes list across TV Series and Serials
+    const episodesList = useMemo(() => {
+        if (isSerial) {
+            return serialEps.map((ep, idx) => {
+                const m = ep.url?.match(/season-(\d+)\/(\d+)\/watch/);
+                const epNum = m ? parseInt(m[2]) : (serialEps.length - idx);
+                const seasonNum = m ? parseInt(m[1]) : 1;
+                return {
+                    id: ep.url || `ep-${epNum}`,
+                    episode_number: epNum,
+                    season_number: seasonNum,
+                    name: ep.title || `Episode ${epNum}`,
+                    air_date: ep.date || 'Recent Episode',
+                    url: ep.url,
+                };
+            });
+        }
+        return seasonData?.episodes || [];
+    }, [isSerial, serialEps, seasonData]);
+
+    // Initialize serial's selected season and episode
+    useEffect(() => {
+        if (isSerial && episodesList.length > 0 && !selectedEpisode) {
+            if (eParam) {
+                setSelectedEpisode(parseInt(eParam));
+                setSelectedSeason(parseInt(sParam) || 1);
+            } else {
+                setSelectedEpisode(episodesList[0].episode_number);
+                setSelectedSeason(episodesList[0].season_number || 1);
+            }
+        }
+    }, [isSerial, episodesList, selectedEpisode, eParam, sParam]);
+
     // Reset scroll position and server selection ONLY when navigating to a new movie/show
     const prevMediaIdRef = useRef(id);
     useEffect(() => {
@@ -121,15 +233,27 @@ const WatchPage = () => {
             window.scrollTo(0, 0);
             setIsMobilePlayerDocked(false);
             hasUserSelectedServerRef.current = false;
-            const currentCached = queryClient.getQueryData(['direct-stream', type, id, selectedSeason, selectedEpisode]);
-            const isCurrentCached = Boolean(currentCached?.success && (currentCached?.embed_url || currentCached?.stream_url));
-            setSelectedServer(isCurrentCached ? 0 : null);
+            if (isSerial) {
+                setSelectedServer(1);
+                setSerialEps([]);
+                setHasMoreSerialEps(false);
+                setNextSerialOffset(null);
+            } else {
+                const currentCached = queryClient.getQueryData(['direct-stream', type, id, selectedSeason, selectedEpisode]);
+                const isCurrentCached = Boolean(currentCached?.success && (currentCached?.embed_url || currentCached?.stream_url));
+                setSelectedServer(isCurrentCached ? 0 : null);
+            }
         }
-    }, [id, type, selectedSeason, selectedEpisode, queryClient]);
+    }, [id, type, selectedSeason, selectedEpisode, queryClient, isSerial]);
 
     // Keep URL in sync with active season/episode without triggering router reloads
     useEffect(() => {
-        if (type === 'tv' && id && selectedSeason && selectedEpisode) {
+        if (isSerial && id && selectedEpisode) {
+            const newPath = `/watch/serial/${id}/${selectedSeason || 1}/${selectedEpisode}`;
+            if (window.location.pathname !== newPath) {
+                window.history.replaceState(null, '', newPath);
+            }
+        } else if (type === 'tv' && id && selectedSeason && selectedEpisode) {
             const newPath = `/watch/${type}/${id}/${selectedSeason}/${selectedEpisode}`;
             if (window.location.pathname !== newPath) {
                 window.history.replaceState(null, '', newPath);
@@ -212,12 +336,6 @@ const WatchPage = () => {
             .replace(/-+/g, '-');
     }, [detail]);
 
-    const { data: serverConfig } = useQuery({
-        queryKey: ['server-config'],
-        queryFn: movieApi.getServerConfig,
-        staleTime: 1000 * 60 * 60, // 1 hour
-    });
-
     // Query direct HLS stream to check if S0 is available for this title/episode
     const { data: directStreamData, isLoading: isStreamLoading } = useQuery({
         queryKey: ['direct-stream', type, id, selectedSeason, selectedEpisode],
@@ -225,23 +343,51 @@ const WatchPage = () => {
             const res = await movieApi.getStreamData(type, id, selectedSeason, selectedEpisode);
             return res.data;
         },
-        enabled: type === 'movie' || Boolean(selectedEpisode),
+        enabled: !isSerial && (type === 'movie' || Boolean(selectedEpisode)),
         staleTime: 5 * 60 * 1000,
     });
 
-    const hasDirectStream = Boolean(directStreamData?.success && (directStreamData?.embed_url || directStreamData?.stream_url));
+    const hasDirectStream = Boolean(!isSerial && directStreamData?.success && (directStreamData?.embed_url || directStreamData?.stream_url));
 
-    // Show S0 ONLY if direct stream is present. Otherwise, show regular server list.
+    // Resolve direct serial embed for Regional TV Serials
+    const currentSerialWatchUrl = useMemo(() => {
+        if (!isSerial) return '';
+        if (location.state?.watchUrl && (!selectedEpisode || selectedEpisode === parseInt(eParam))) {
+            return location.state.watchUrl;
+        }
+        const activeEp = episodesList.find(e => e.episode_number === selectedEpisode);
+        if (activeEp?.url) return activeEp.url;
+        return `/show/${id}/season-${selectedSeason || 1}/${selectedEpisode || 1}/watch/`;
+    }, [isSerial, location.state, episodesList, selectedEpisode, selectedSeason, id, eParam]);
+
+    const { data: serialStreamData, isLoading: isSerialStreamLoading } = useQuery({
+        queryKey: ['serial-stream', currentSerialWatchUrl],
+        queryFn: async () => {
+            if (!currentSerialWatchUrl) return null;
+            return await serialsApi.resolveEmbed(currentSerialWatchUrl);
+        },
+        enabled: isSerial && !!currentSerialWatchUrl && isSerialsEnabled !== false,
+        staleTime: 60 * 60 * 1000,
+    });
+
+    // Show S1 for serials, and S0 + base servers for movies and TV shows
     const servers = useMemo(() => {
+        if (isSerial) {
+            return [{ id: 1, label: 'S1' }];
+        }
         const list = serverConfig?.servers || [];
         const baseServers = list.filter(s => s.id !== 0);
         if (hasDirectStream) {
             return [{ id: 0, label: 'S0' }, ...baseServers];
         }
         return baseServers;
-    }, [serverConfig, hasDirectStream]);
+    }, [serverConfig, hasDirectStream, isSerial]);
 
     useEffect(() => {
+        if (isSerial) {
+            setSelectedServer(1);
+            return;
+        }
         if (!serverConfig) return;
 
         // Respect user's explicit manual server selection
@@ -259,11 +405,14 @@ const WatchPage = () => {
         } else {
             setSelectedServer(configDefault);
         }
-    }, [serverConfig, hasDirectStream, isStreamLoading]);
+    }, [serverConfig, hasDirectStream, isStreamLoading, isSerial]);
 
     // Memoized so it only recalculates when player dependencies change,
     // not on every scroll/focus re-render.
     const iframeSrc = useMemo(() => {
+        if (isSerial) {
+            return serialStreamData?.embed_url || '';
+        }
         if (selectedServer === 0) {
             return directStreamData?.embed_url || directStreamData?.stream_url || '';
         }
@@ -281,9 +430,16 @@ const WatchPage = () => {
             .replace('{slug}', slug)
             .replace('{s}', selectedSeason)
             .replace('{e}', selectedEpisode);
-    }, [serverConfig, type, selectedServer, id, slug, selectedSeason, selectedEpisode, directStreamData]);
+    }, [isSerial, serialStreamData, serverConfig, type, selectedServer, id, slug, selectedSeason, selectedEpisode, directStreamData]);
 
     const handleNextEpisode = useCallback(() => {
+        if (isSerial) {
+            const currentIdx = episodesList.findIndex(e => e.episode_number === selectedEpisode);
+            if (currentIdx > 0) {
+                setSelectedEpisode(episodesList[currentIdx - 1].episode_number);
+            }
+            return;
+        }
         if (type !== 'tv') return;
         const currentSeasonEps = seasonData?.episodes?.length || 0;
         if (selectedEpisode < currentSeasonEps) {
@@ -295,14 +451,18 @@ const WatchPage = () => {
                 setSelectedEpisode(1);
             }
         }
-    }, [type, selectedEpisode, seasonData, detail, selectedSeason]);
+    }, [isSerial, episodesList, type, selectedEpisode, seasonData, detail, selectedSeason]);
 
     const hasNextEpisode = useMemo(() => {
+        if (isSerial) {
+            const currentIdx = episodesList.findIndex(e => e.episode_number === selectedEpisode);
+            return currentIdx > 0;
+        }
         if (type !== 'tv') return false;
         const currentSeasonEps = seasonData?.episodes?.length || 0;
         if (selectedEpisode && selectedEpisode < currentSeasonEps) return true;
         return detail?.seasons?.some(s => s.season_number === selectedSeason + 1);
-    }, [type, selectedEpisode, seasonData, detail, selectedSeason]);
+    }, [isSerial, episodesList, type, selectedEpisode, seasonData, detail, selectedSeason]);
 
     const availableSeasons = useMemo(() => {
         return detail?.seasons?.filter(s => s.season_number !== 0) || [];
@@ -617,6 +777,10 @@ const WatchPage = () => {
         };
     }, []);
 
+    if (isSerial && isSerialsEnabled === false) {
+        return <Navigate to="/" replace />;
+    }
+
     // Only show a hard loading screen when there is truly NO data at all.
     // When cached data exists (background refetch), render immediately with it.
     if (isDetailLoading && !detail) return <div className="loader-main"><Loader2 className="animate-spin" size={48} color="#fdd835" /></div>;
@@ -689,13 +853,13 @@ const WatchPage = () => {
                         className={`player-container-main ${activeSection === 'player' ? 'player-container-main--tv-focused' : ''} ${isMobilePlayerDocked ? 'is-mobile-docked' : ''}`}
                         style={isMobilePlayerDocked ? { top: `${navHeight - 1}px` } : {}}
                     >
-                        {type === 'tv' && !selectedEpisode ? (
+                        {(type === 'tv' || isSerial) && !selectedEpisode ? (
                             <div className="player-placeholder">
                                 <Play size={48} className="text-yellow-500 mb-4" />
                                 <h3>Select an episode to start watching</h3>
-                                <p>Season {selectedSeason} is ready</p>
+                                <p>Season {selectedSeason || 1} is ready</p>
                             </div>
-                        ) : selectedServer === null || (selectedServer === 0 && isStreamLoading) ? (
+                        ) : selectedServer === null || (selectedServer === 0 && isStreamLoading) || (isSerial && isSerialStreamLoading) ? (
                             <div className="player-shimmer shimmer-wrapper" style={{ minHeight: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                                 <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
                             </div>
@@ -712,7 +876,8 @@ const WatchPage = () => {
                                     className="watch-iframe"
                                     style={{ opacity: isIframeLoading ? 0 : 1, transition: 'opacity 0.3s ease' }}
                                     allow="autoplay; encrypted-media; fullscreen; picture-in-picture; clipboard-write"
-                                    referrerPolicy="origin-when-cross-origin"
+                                    referrerPolicy={isSerial ? "no-referrer" : "origin-when-cross-origin"}
+                                    sandbox={isSerial ? "allow-scripts allow-same-origin allow-presentation allow-forms" : undefined}
                                     loading="lazy"
                                     allowFullScreen
                                     onLoad={() => setIsIframeLoading(false)}
@@ -790,7 +955,7 @@ const WatchPage = () => {
                             )}
                         </div>
 
-                        {type === 'tv' && hasNextEpisode && (
+                        {(type === 'tv' || isSerial) && hasNextEpisode && (
                             <button
                                 ref={nextEpRef}
                                 tabIndex={tvMode ? -1 : 0}
@@ -810,133 +975,166 @@ const WatchPage = () => {
                     <div className="watch-meta">
                         <div className="breadcrumbs">
                             <Link to="/">Home</Link> /
-                            <Link to={`/${type}/${id}`}>{title}</Link> /
+                            {isSerial ? (
+                                <Link to="/serials">TV Serials</Link>
+                            ) : (
+                                <Link to={`/${type}/${id}`}>{title}</Link>
+                            )} /
                             <span>Watch</span>
                         </div>
                         <h1 className="watch-title">{title}</h1>
-                        {type === 'tv' && selectedEpisode && (
-                            <p className="watch-subtitle">S{selectedSeason} E{selectedEpisode}</p>
+                        {(type === 'tv' || isSerial) && selectedEpisode && (
+                            <p className="watch-subtitle">S{selectedSeason || 1} E{selectedEpisode}</p>
                         )}
-                        {!isApk && (type === 'movie' || selectedEpisode) && (
+                        {!isApk && !isSerial && (type === 'movie' || selectedEpisode) && (
                             <button type="button" className="watch-download-btn" onClick={() => setIsDownloadOpen(true)}>
                                 <Download size={18} /> Download
                             </button>
                         )}
                     </div>
 
-                    {type === 'tv' && (
+                    {(type === 'tv' || isSerial) && (
                         <div className="episode-selector-container">
                             <div className="selector-header">
-                                <h3>Seasons</h3>
-                                {/* Custom selector driven by D-Pad and Mouse Clicks */}
-                                <div
-                                    ref={seasonRef}
-                                    tabIndex={isTVSize() ? -1 : 0}
-                                    onFocus={() => setActiveSection('seasons')}
-                                    onClick={(e) => {
-                                        e.preventDefault();
-                                        if (isSeasonMenuOpen) {
-                                            closeSeasonMenu();
-                                        } else {
-                                            openSeasonMenu();
-                                        }
-                                    }}
-                                    className={`season-tv-selector ${activeSection === 'seasons' ? 'season-dropdown--tv-focused' : ''} ${isSeasonMenuOpen ? 'is-open' : ''}`}
-                                    aria-label={selectedSeason ? `Season ${selectedSeason}` : 'Season'}
-                                    aria-expanded={isSeasonMenuOpen}
-                                    role="button"
-                                >
-                                    <ChevronLeft size={16} className="season-tv-arrow" />
-                                    <span className="season-tv-label">
-                                        {detail.seasons?.find(s => s.season_number === selectedSeason)?.name || (selectedSeason ? `Season ${selectedSeason}` : 'Season')}
-                                    </span>
-                                    <ChevronDown size={16} className="season-tv-arrow" />
-                                    {isSeasonMenuOpen && (
-                                        <div className="season-tv-menu" role="listbox">
-                                            {availableSeasons.map((season, idx) => (
-                                                <button
-                                                    key={season.id}
-                                                    ref={el => { seasonOptionRefs.current[idx] = el; }}
-                                                    type="button"
-                                                    tabIndex={-1}
-                                                    className={`season-tv-option ${selectedSeason === season.season_number ? 'active' : ''} ${focusedSeasonIdx === idx ? 'focused' : ''}`}
-                                                    onFocus={() => setFocusedSeasonIdx(idx)}
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        selectSeason(season.season_number);
-                                                    }}
-                                                    role="option"
-                                                    aria-selected={selectedSeason === season.season_number}
-                                                >
-                                                    {season.name}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
+                                <h3>{isSerial ? `Episodes (${episodesList.length})` : 'Seasons'}</h3>
+                                {type === 'tv' && (
+                                    <div
+                                        ref={seasonRef}
+                                        tabIndex={isTVSize() ? -1 : 0}
+                                        onFocus={() => setActiveSection('seasons')}
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            if (isSeasonMenuOpen) {
+                                                closeSeasonMenu();
+                                            } else {
+                                                openSeasonMenu();
+                                            }
+                                        }}
+                                        className={`season-tv-selector ${activeSection === 'seasons' ? 'season-dropdown--tv-focused' : ''} ${isSeasonMenuOpen ? 'is-open' : ''}`}
+                                        aria-label={selectedSeason ? `Season ${selectedSeason}` : 'Season'}
+                                        aria-expanded={isSeasonMenuOpen}
+                                        role="button"
+                                    >
+                                        <ChevronLeft size={16} className="season-tv-arrow" />
+                                        <span className="season-tv-label">
+                                            {detail.seasons?.find(s => s.season_number === selectedSeason)?.name || (selectedSeason ? `Season ${selectedSeason}` : 'Season')}
+                                        </span>
+                                        <ChevronDown size={16} className="season-tv-arrow" />
+                                        {isSeasonMenuOpen && (
+                                            <div className="season-tv-menu" role="listbox">
+                                                {availableSeasons.map((season, idx) => (
+                                                    <button
+                                                        key={season.id}
+                                                        ref={el => { seasonOptionRefs.current[idx] = el; }}
+                                                        type="button"
+                                                        tabIndex={-1}
+                                                        className={`season-tv-option ${selectedSeason === season.season_number ? 'active' : ''} ${focusedSeasonIdx === idx ? 'focused' : ''}`}
+                                                        onFocus={() => setFocusedSeasonIdx(idx)}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            selectSeason(season.season_number);
+                                                        }}
+                                                        role="option"
+                                                        aria-selected={selectedSeason === season.season_number}
+                                                    >
+                                                        {season.name}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
-                            <div className="episodes-scroll-list">
-                                {isSeasonLoading ? (
+                            <div
+                                className="episodes-scroll-list"
+                                onScroll={(e) => {
+                                    if (!isSerial) return;
+                                    const { scrollTop, clientHeight, scrollHeight } = e.currentTarget;
+                                    if (scrollTop + clientHeight >= scrollHeight - 60) {
+                                        handleLoadMoreSerialEpisodes();
+                                    }
+                                }}
+                            >
+                                {(type === 'tv' ? isSeasonLoading : isSerialLoading) ? (
                                     <div className="mini-loader"><Loader2 className="animate-spin" size={24} /></div>
                                 ) : (
-                                    seasonData?.episodes?.map((ep, idx) => (
-                                        <div
-                                            key={ep.id}
-                                            ref={el => episodeRefs.current[idx] = el}
-                                            tabIndex={tvMode ? -1 : 0}
-                                            onFocus={() => { if (tvMode) { setActiveSection('episodes'); setEpisodeIdx(idx); } }}
-                                            className={`episode-item ${selectedEpisode === ep.episode_number ? 'active' : ''} ${activeSection === 'episodes' && episodeIdx === idx && tvMode ? 'episode-item--tv-focused' : ''}`}
-                                            onClick={() => setSelectedEpisode(ep.episode_number)}
-                                        >
-                                            <div className="ep-num">E{ep.episode_number}</div>
-                                            <div className="ep-info">
-                                                <div className="ep-name">{ep.name}</div>
-                                                <div className="ep-date">{ep.air_date}</div>
+                                    <>
+                                        {episodesList.map((ep, idx) => (
+                                            <div
+                                                key={ep.id || idx}
+                                                ref={el => episodeRefs.current[idx] = el}
+                                                tabIndex={tvMode ? -1 : 0}
+                                                onFocus={() => { if (tvMode) { setActiveSection('episodes'); setEpisodeIdx(idx); } }}
+                                                className={`episode-item ${selectedEpisode === ep.episode_number ? 'active' : ''} ${activeSection === 'episodes' && episodeIdx === idx && tvMode ? 'episode-item--tv-focused' : ''}`}
+                                                onClick={() => setSelectedEpisode(ep.episode_number)}
+                                            >
+                                                <div className="ep-num">E{ep.episode_number}</div>
+                                                <div className="ep-info">
+                                                    <div className="ep-name">{ep.name}</div>
+                                                    <div className="ep-date">{ep.air_date}</div>
+                                                </div>
                                             </div>
-                                        </div>
-                                    ))
+                                        ))}
+
+                                        {isSerial && isLoadingMoreSerials && (
+                                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '14px', gap: '8px', color: 'var(--accent-yellow, #fdd835)' }}>
+                                                <Loader2 className="animate-spin" size={16} />
+                                                <span style={{ fontSize: '0.8rem', color: '#aaa' }}>Loading older episodes...</span>
+                                            </div>
+                                        )}
+
+                                        {isSerial && !isLoadingMoreSerials && episodesList.length > 0 && !hasMoreSerialEps && (
+                                            <div style={{ textAlign: 'center', padding: '14px 8px 8px', color: '#666', fontSize: '0.78rem', letterSpacing: '0.02em' }}>
+                                                All available episodes loaded ({episodesList.length})
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </div>
                     )}
 
-                    <div className="watch-cast">
-                        <h3>Cast</h3>
-                        <p>{cast || 'N/A'}</p>
-                    </div>
+                    {!isSerial && (
+                        <>
+                            <div className="watch-cast">
+                                <h3>Cast</h3>
+                                <p>{cast || 'N/A'}</p>
+                            </div>
 
-                    <div className="watch-similar">
-                        <h3>Recommended for You</h3>
-                        <div className="similar-list">
-                            {isRecLoading ? (
-                                <div className="loader-container-small">
-                                    <Loader2 className="animate-spin" size={24} color="#fdd835" />
-                                </div>
-                            ) : (
-                                recommendations?.map((movie, idx) => (
-                                    <Link
-                                        key={movie.id}
-                                        ref={el => similarRefs.current[idx] = el}
-                                        to={`/${type}/${movie.id}`}
-                                        tabIndex={tvMode ? -1 : 0}
-                                        onFocus={() => { if (tvMode) { setActiveSection('similar'); setSimilarIdx(idx); } }}
-                                        className={`similar-card ${activeSection === 'similar' && similarIdx === idx && tvMode ? 'similar-card--tv-focused' : ''}`}
-                                    >
-                                        <img
-                                            src={movieApi.getImageUrl(movie.poster_path, 'w200')}
-                                            alt={movie.title || movie.name}
-                                            loading="lazy"
-                                        />
-                                        <div className="similar-info">
-                                            <p>{movie.title || movie.name}</p>
-                                            <span>{movie.release_date?.split('-')[0] || movie.first_air_date?.split('-')[0]}</span>
+                            <div className="watch-similar">
+                                <h3>Recommended for You</h3>
+                                <div className="similar-list">
+                                    {isRecLoading ? (
+                                        <div className="loader-container-small">
+                                            <Loader2 className="animate-spin" size={24} color="#fdd835" />
                                         </div>
-                                    </Link>
-                                ))
-                            )}
-                        </div>
-                    </div>
+                                    ) : (
+                                        recommendations?.map((movie, idx) => (
+                                            <Link
+                                                key={movie.id}
+                                                ref={el => similarRefs.current[idx] = el}
+                                                to={`/${type}/${movie.id}`}
+                                                tabIndex={tvMode ? -1 : 0}
+                                                onFocus={() => { if (tvMode) { setActiveSection('similar'); setSimilarIdx(idx); } }}
+                                                className={`similar-card ${activeSection === 'similar' && similarIdx === idx && tvMode ? 'similar-card--tv-focused' : ''}`}
+                                            >
+                                                <img
+                                                    src={movieApi.getImageUrl(movie.poster_path, 'w200')}
+                                                    alt={movie.title || movie.name}
+                                                    loading="lazy"
+                                                />
+                                                <div className="similar-info">
+                                                    <p>{movie.title || movie.name}</p>
+                                                    <span>{movie.release_date?.split('-')[0] || movie.first_air_date?.split('-')[0]}</span>
+                                                </div>
+                                            </Link>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
             <footer className="footer" style={{ marginTop: '4rem', marginBottom: '2rem', opacity: 0.5, fontSize: '0.8rem', textAlign: 'center' }}>

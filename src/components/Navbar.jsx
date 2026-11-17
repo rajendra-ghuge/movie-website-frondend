@@ -144,6 +144,7 @@ const Navbar = () => {
     });
 
     const isLiveTvEnabled = serverConfig?.Enable_livetv ?? serverConfig?.enable_livetv ?? DEFAULT_CONFIG.Enable_livetv ?? true;
+    const isSerialsEnabled = serverConfig?.Enable_serials ?? serverConfig?.enable_serials ?? serverConfig?.enable_serial ?? DEFAULT_CONFIG.Enable_serials ?? true;
     const isAppEnabled = serverConfig?.enable_app ?? serverConfig?.Enable_app ?? DEFAULT_CONFIG.enable_app ?? true;
     const rawAppDownloadLink = serverConfig?.app_download_link ?? DEFAULT_CONFIG.app_download_link;
 
@@ -218,6 +219,7 @@ const Navbar = () => {
             ] : [])
         ] : []),
         { name: 'Trending', path: '/?type=movie&cat=movie', cat: 'movie' },
+        ...(isSerialsEnabled ? [{ name: 'TV Serials', path: '/serials', cat: 'serials' }] : []),
         {
             name: 'Anime', cat: 'anime',
             dropdown: [
@@ -316,6 +318,9 @@ const Navbar = () => {
     const isLinkActive = useCallback((link) => {
         if (link.isLive) {
             return location.pathname === '/live';
+        }
+        if (link.cat === 'serials') {
+            return location.pathname === '/serials';
         }
         if (link.cat === 'tv') {
             return currentCat?.startsWith('tv') || query.get('type') === 'tv';

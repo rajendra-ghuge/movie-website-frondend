@@ -10,6 +10,8 @@ const MovieDetailPage = lazy(() => import('./pages/MovieDetailPage'));
 const WatchPage = lazy(() => import('./pages/WatchPage'));
 const DownloadDetailsPage = lazy(() => import('./pages/DownloadDetailsPage'));
 const LiveTVPage = lazy(() => import('./pages/LiveTVPage'));
+const SerialsPage = lazy(() => import('./pages/SerialsPage'));
+const ChannelPage = lazy(() => import('./pages/ChannelPage'));
 
 const getAnalyticsDeviceId = () => {
   try {
@@ -130,6 +132,8 @@ function App() {
             <Route path="/watch/:type/:id/:season/:episode" element={<WatchPage />} />
             <Route path="/downloads" element={<DownloadDetailsPage />} />
             <Route path="/live" element={<LiveTVPage />} />
+            <Route path="/serials" element={<SerialsPage />} />
+            <Route path="/serials/channel/:channelSlug" element={<ChannelPage />} />
           </Routes>
         </Suspense>
         <MovieChatbot />
