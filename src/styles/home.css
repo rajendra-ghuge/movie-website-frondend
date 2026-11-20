@@ -12,16 +12,12 @@
   border-radius: 12px;
   overflow: visible;
   cursor: pointer;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
   box-shadow: none;
   border: none;
   height: 100%;
-  content-visibility: auto;
-  contain-intrinsic-size: 180px 320px;
 }
-.movie-card:hover {
-  transform: translateY(-8px);
-}
+
 .poster-container {
   position: relative;
   aspect-ratio: 2/3;
@@ -30,21 +26,31 @@
   background: #18181c;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: transform 0.4s ease, box-shadow 0.4s ease, border-color 0.4s ease;
+  transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
 }
-.movie-card:hover .poster-container {
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
-  border-color: rgba(255, 255, 255, 0.2);
-}
+
 .movie-poster {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.5s ease;
+  transition: transform 0.3s ease;
   background: #18181c;
 }
-.movie-card:hover .movie-poster {
-  transform: scale(1.05);
+
+@media (hover: hover) and (pointer: fine) {
+  .movie-card:hover {
+    transform: translateY(-8px);
+  }
+  .movie-card:hover .poster-container {
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.7);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+  .movie-card:hover .movie-poster {
+    transform: scale(1.05);
+  }
+  .movie-card:hover .card-name {
+    color: var(--accent-yellow, #fdd835);
+  }
 }
 
 /* Quality Badges */
@@ -171,9 +177,6 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   transition: color 0.2s ease;
-}
-.movie-card:hover .card-name {
-  color: var(--accent-yellow, #fdd835);
 }
 .card-meta {
   font-size: 0.8rem;

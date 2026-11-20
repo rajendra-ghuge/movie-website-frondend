@@ -78,6 +78,14 @@
   /* Movie Grid */
   .movie-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
 
+  /* Disable expensive real-time Gaussian backdrop blur filters on mobile badges for buttery smooth 60/120fps scrolling */
+  .quality-badge,
+  .season-badge,
+  .card-lang-badge {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
   /* Docked Player Support */
   .player-mobile-anchor {
     width: 100%;

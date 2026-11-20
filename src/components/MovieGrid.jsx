@@ -135,7 +135,7 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
                     fetchNextPage();
                 }
             },
-            { root: null, rootMargin: '0px', threshold: 0.35 }
+            { root: null, rootMargin: '400px', threshold: 0.1 }
         );
 
         observer.observe(triggerCard);
@@ -370,6 +370,7 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
                                     alt={movie.title || movie.name}
                                     className="movie-poster"
                                     loading="lazy"
+                                    decoding="async"
                                     onError={(e) => {
                                         e.currentTarget.onerror = null;
                                         e.currentTarget.src = FALLBACK_POSTER;

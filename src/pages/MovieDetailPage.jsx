@@ -18,6 +18,7 @@ const MovieDetailPage = () => {
 
     // TV navigation state
     const [activeSection, setActiveSection] = useState(null);
+    const [isPosterLoaded, setIsPosterLoaded] = useState(false);
     const [castFocusIdx, setCastFocusIdx] = useState(0);
     const [genreFocusIdx, setGenreFocusIdx] = useState(0);
     const [kwFocusIdx, setKwFocusIdx] = useState(0);
@@ -79,6 +80,7 @@ const MovieDetailPage = () => {
     useEffect(() => {
         // Scroll to top on navigation — moved out of queryFn to avoid running on background refetches.
         window.scrollTo(0, 0);
+        setIsPosterLoaded(false);
         setActiveSection(null);
         setCastFocusIdx(0);
         setGenreFocusIdx(0);
@@ -297,7 +299,19 @@ const MovieDetailPage = () => {
             <Navbar />
             <div id="tv-grid-focus-anchor" tabIndex={tvMode ? 0 : -1} onFocus={() => tvMode && focusSection('watch')} style={{ position: 'absolute', opacity: 0 }} aria-hidden="true" />
             <div className="detail-page">
-                <div className="detail-left"><img src={movieApi.getImageUrl(movie.poster_path, 'w500')} alt="" className="detail-poster-large" /></div>
+                <div className="detail-left">
+                    <div className={`detail-poster-wrapper ${!isPosterLoaded ? 'shimmer-wrapper' : ''}`}>
+                        <img
+                            src={movieApi.getImageUrl(movie.poster_path, 'w500')}
+                            alt={title || ''}
+                            className={`detail-poster-large ${isPosterLoaded ? 'loaded' : ''}`}
+                            loading="eager"
+                            decoding="async"
+                            onLoad={() => setIsPosterLoaded(true)}
+                            onError={() => setIsPosterLoaded(true)}
+                        />
+                    </div>
+                </div>
                 <div className="detail-right">
                     <h1 className="detail-title-large">{title}</h1>
                     <div className="detail-actions">

@@ -78,10 +78,12 @@ const SortDropdown = () => {
 
         if (isOpen) {
             document.addEventListener('mousedown', handleClickOutside);
+            document.addEventListener('touchstart', handleClickOutside);
             document.addEventListener('keydown', handleEscape);
         }
         return () => {
             document.removeEventListener('mousedown', handleClickOutside);
+            document.removeEventListener('touchstart', handleClickOutside);
             document.removeEventListener('keydown', handleEscape);
         };
     }, [isOpen]);

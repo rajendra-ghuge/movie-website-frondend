@@ -113,6 +113,7 @@ const Navbar = () => {
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeDropdown, setActiveDropdown] = useState(null);
+    const [mobileExpanded, setMobileExpanded] = useState(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [focusedNavIdx, setFocusedNavIdx] = useState(-1);
 
@@ -139,7 +140,7 @@ const Navbar = () => {
 
     useEffect(() => {
         const handleClickOutside = (e) => {
-            if (!e.target.closest('.nav-item-container')) {
+            if (!e.target.closest('.nav-item-container') && !e.target.closest('.mobile-menu')) {
                 if (closeTimeoutRef.current) {
                     clearTimeout(closeTimeoutRef.current);
                 }
@@ -392,6 +393,7 @@ const Navbar = () => {
     useEffect(() => {
         setIsMenuOpen(false);
         setActiveDropdown(null);
+        setMobileExpanded(null);
 
         // Never steal focus or default-focus Live TV on page load or reload
         if (isFirstLoad.current) {
@@ -475,7 +477,7 @@ const Navbar = () => {
 
     // ── Mobile dropdown toggle ─────────────────────────────
     const toggleMobileDropdown = (name) => {
-        setActiveDropdown(activeDropdown === name ? null : name);
+        setMobileExpanded(prev => prev === name ? null : name);
     };
 
     // ── Navbar keyboard handler ────────────────────────────
@@ -657,11 +659,11 @@ const Navbar = () => {
                 MOBILE SIDE MENU
             ══════════════════════════════════════════ */}
             {isMenuOpen && (
-                <div className="mobile-menu-overlay" onClick={() => setIsMenuOpen(false)}>
+                <div className="mobile-menu-overlay" onClick={() => { setIsMenuOpen(false); setMobileExpanded(null); }}>
                     <div className="mobile-menu" onClick={(e) => e.stopPropagation()}>
                         <div className="mobile-menu-header">
                             <span className="nav-brand">4KH<span className="brand-yellow">DHUB</span></span>
-                            <button className="close-menu-btn" onClick={() => setIsMenuOpen(false)}>
+                            <button className="close-menu-btn" onClick={() => { setIsMenuOpen(false); setMobileExpanded(null); }}>
                                 <X size={24} />
                             </button>
                         </div>
@@ -669,12 +671,16 @@ const Navbar = () => {
                             {navLinks.map(link => (
                                 <div key={link.name} className="mobile-nav-item">
                                     <div
-                                        className={`mobile-nav-link-main ${activeDropdown === link.name ? 'active' : ''}`}
-                                        onClick={() =>
-                                            link.dropdown
-                                                ? toggleMobileDropdown(link.name)
-                                                : navigate(link.path)
-                                        }
+                                        className={`mobile-nav-link-main ${mobileExpanded === link.name ? 'active' : ''}`}
+                                        onClick={() => {
+                                            if (link.dropdown) {
+                                                toggleMobileDropdown(link.name);
+                                            } else {
+                                                if (link.path) navigate(link.path);
+                                                setIsMenuOpen(false);
+                                                setMobileExpanded(null);
+                                            }
+                                        }}
                                     >
                                         <span className="mobile-nav-link-title">
                                             {link.icon && <span className="mobile-nav-icon">{link.icon}</span>}
@@ -686,11 +692,11 @@ const Navbar = () => {
                                         {link.dropdown && (
                                             <ChevronDown
                                                 size={16}
-                                                className={activeDropdown === link.name ? 'rotate-180' : ''}
+                                                className={mobileExpanded === link.name ? 'rotate-180' : ''}
                                             />
                                         )}
                                     </div>
-                                    {link.dropdown && activeDropdown === link.name && (
+                                    {link.dropdown && mobileExpanded === link.name && (
                                         <div className="mobile-dropdown-content">
                                             {link.dropdown.map(subItem => {
                                                 if (subItem.href) {
@@ -705,6 +711,7 @@ const Navbar = () => {
                                                             onClick={() => {
                                                                 if (subItem.action) subItem.action();
                                                                 setIsMenuOpen(false);
+                                                                setMobileExpanded(null);
                                                             }}
                                                         >
                                                             {subItem.icon && <span className="mobile-dropdown-item-icon">{subItem.icon}</span>}
@@ -721,6 +728,7 @@ const Navbar = () => {
                                                         onClick={() => {
                                                             if (subItem.action) subItem.action();
                                                             setIsMenuOpen(false);
+                                                            setMobileExpanded(null);
                                                         }}
                                                     >
                                                         {subItem.icon && <span className="mobile-dropdown-item-icon">{subItem.icon}</span>}
