@@ -183,6 +183,7 @@ export const movieApi = {
     discoverMovies: (params) => api.get('/discover/movie', { params }),
     discoverTv: (params) => api.get('/discover/tv', { params }),
     discoverBoth: (params) => api.get('/discover/both', { params }),
+    getPlayforuLatest: (params = {}) => api.get('/playforu/latest', { params }),
     searchMulti: (query, page = 1) => api.get('/search/multi', { params: { query, page } }),
     getMoviesByCast: (castId, params = {}) => api.get('/discover/both', { params: { ...params, with_cast: castId } }),
     getTvDetail: (id, params = {}) => api.get(`/tv/${id}`, { params }),

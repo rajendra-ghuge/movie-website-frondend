@@ -10,6 +10,13 @@
  * - Future releases: COMING SOON
  */
 export const getMovieQuality = (movie, context = {}) => {
+    const isPlayforu = Boolean(
+        context.isPlayforu ||
+        movie.is_playforu ||
+        movie.from_playforu ||
+        (movie.langs && movie.langs.length > 0) ||
+        movie.season_badge
+    );
     const isTv = !movie.title && (movie.name || movie.media_type === 'tv');
     const releaseDateStr = movie.release_date || movie.first_air_date;
 
@@ -63,7 +70,11 @@ export const getMovieQuality = (movie, context = {}) => {
 
     // 3. Theatrical Window (first 60 days / 8 weeks after release)
     // Theatrical movies are currently in cinemas and haven't exited to OTT yet -> CAM
+    // For PlayForU data, always replace CAM with HD
     if (diffDays <= 60) {
+        if (isPlayforu) {
+            return { label: 'HD', type: 'hd' };
+        }
         return { label: 'CAM', type: 'cam' };
     }
 

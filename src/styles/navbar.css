@@ -34,7 +34,38 @@
 .nav-link-icon { display: inline-flex; align-items: center; color: var(--accent-yellow); }
 .nav-right { display: flex; align-items: center; gap: 1.25rem; color: white; }
 .nav-item-container { position: relative; }
-.nav-dropdown { position: absolute; top: 100%; left: 0; background: #1a1a1a; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; min-width: 180px; max-height: 400px; overflow-y: auto; scrollbar-width: thin; padding: 0.5rem 0; z-index: 2000; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; margin-top: 0.5rem; animation: fadeIn 0.2s ease-out; }
+.nav-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  min-width: 180px;
+  max-height: 80vh;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  padding: 0.5rem 0;
+  z-index: 2000;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+  margin-top: 0.5rem;
+  animation: fadeIn 0.2s ease-out;
+}
+.nav-dropdown::-webkit-scrollbar {
+  display: none;
+}
+.nav-dropdown::before {
+  content: '';
+  position: absolute;
+  top: -12px;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: transparent;
+}
 .nav-item-container:last-child .nav-dropdown { left: auto; right: 0; }
 @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 .dropdown-item {

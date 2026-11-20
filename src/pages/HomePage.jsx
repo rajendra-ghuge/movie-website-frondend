@@ -166,14 +166,36 @@ const HomePage = () => {
         return 'Filtered Content';
     }, [s, k, kn, cast, cn, cat, latest, lang, type, sort, genre, provider]);
 
-    const fetchUrlData = useCallback((pageParams = { page: 1 }) => {
+    const fetchUrlData = useCallback(async (pageParams = { page: 1 }) => {
         if (s) return movieApi.searchMulti(s, pageParams.page);
         if (k) return movieApi.getMoviesByKeyword(k, pageParams);
         if (cast) return movieApi.getMoviesByCast(cast, pageParams);
 
-        // Trending home feed (only when no extra sort or when default popularity is selected)
-        if (cat === 'movie' && type === 'movie' && !provider && !latest && (!sort || sort === 'popularity.desc')) {
-            return movieApi.getTrending('all', 'day', pageParams);
+        // Home screen default feed: scraped PlayForU catalog data
+        // Active when on home page (no search, no category/filter) and sort is default 'Popular'
+        const isHomeScreen = !s && !k && !cast && !provider && !lang && !genre && !year && !latest && (!cat || cat === 'movie') && type === 'movie';
+        const isDefaultPopular = !sort || sort === 'popularity.desc';
+
+        if (isHomeScreen && isDefaultPopular) {
+            try {
+                const res = await movieApi.getPlayforuLatest(pageParams);
+                if (res?.data?.results && res.data.results.length > 0) {
+                    res.data.results = res.data.results.map(item => ({
+                        ...item,
+                        is_playforu: true,
+                        from_playforu: true
+                    }));
+                    return res;
+                }
+            } catch (err) {
+                console.warn("PlayForU scraper unavailable, falling back to default home page:", err);
+            }
+
+            // Seamless fallback if scraper fails or site is down:
+            if (cat === 'movie') {
+                return movieApi.getTrending('all', 'day', pageParams);
+            }
+            // If !cat, continues to discoverBoth below
         }
 
         const today = new Date().toISOString().split('T')[0];

@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Play, Tv, RefreshCw, Layers, AlertCircle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Play, Tv, RefreshCw, Layers, AlertCircle, ChevronRight, Loader2 } from 'lucide-react';
 import Navbar from '../components/Navbar';
 import { serialsApi, movieApi, DEFAULT_CONFIG } from '../api';
 import '../styles/serials.css';
@@ -81,16 +81,6 @@ function HorizontallyScrollableShelf({ shelf, onPlayEpisode }) {
             </div>
 
             <div className="serials-shelf-container-relative">
-                {/* Scroll buttons for desktop / TV */}
-                <button
-                    onClick={() => scroll('left')}
-                    className="serials-scroll-btn left"
-                    title="Scroll left"
-                    aria-label="Scroll left"
-                >
-                    <ChevronLeft size={20} />
-                </button>
-
                 <div
                     ref={scrollRef}
                     className="serials-shelf-scroll"
@@ -151,7 +141,6 @@ function HorizontallyScrollableShelf({ shelf, onPlayEpisode }) {
                                 </h3>
                                 <div className="serials-card-meta">
                                     <span>{ep.channelName || ep.serialTitle || 'TV Serial'}</span>
-                                    <span style={{ color: 'var(--accent-yellow, #fdd835)', fontWeight: 600 }}>Watch</span>
                                 </div>
                             </div>
                         </div>

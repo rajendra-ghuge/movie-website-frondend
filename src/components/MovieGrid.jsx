@@ -143,6 +143,7 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
     }, [fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, locationSearch, movies.length]);
 
     const handleMovieClick = useCallback((movie) => {
+        setFocusedCardIdx(-1);
         const mediaType = type || movie.media_type || (movie.title ? 'movie' : 'tv');
         navigate(`/${mediaType}/${movie.id}`);
     }, [navigate, type]);
@@ -332,11 +333,27 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
 
                     const mediaType = type || movie.media_type || (movie.title ? 'movie' : 'tv');
                     const isFocused = focusedCardIdx === idx;
-                    const quality = getMovieQuality(movie, {
+                    const hasPlayforuLangs = Boolean(movie.langs && movie.langs.length > 0);
+                    const isFromPlayforu = Boolean(
+                        movie.is_playforu ||
+                        movie.from_playforu ||
+                        hasPlayforuLangs ||
+                        movie.season_badge
+                    );
+                    let quality = getMovieQuality(movie, {
                         isOtt: isOttContext,
                         isTheatrical: isTheatricalContext,
-                        ottMovieIds: recentOttData
+                        ottMovieIds: recentOttData,
+                        isPlayforu: isFromPlayforu
                     });
+                    // For PlayForU data, always replace CAM with HD
+                    if (isFromPlayforu && (quality.type === 'cam' || quality.label === 'CAM')) {
+                        quality = { label: 'HD', type: 'hd' };
+                    }
+                    const movieLangs = hasPlayforuLangs
+                        ? movie.langs
+                        : (movie.original_language ? [movie.original_language.toUpperCase()] : []);
+                    const isTmdbFallback = !hasPlayforuLangs && movieLangs.length > 0;
 
                     return (
                         <div
@@ -344,7 +361,7 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
                             ref={el => { cardRefs.current[idx] = el; }}
                             tabIndex={isTVSize() ? -1 : undefined}
                             onClick={() => handleMovieClick(movie)}
-                            onFocus={() => isTVSize() && setFocusedCardIdx(idx)}
+                            onMouseDown={() => setFocusedCardIdx(-1)}
                             className={`movie-card ${isFocused && isTVSize() ? 'movie-card--tv-focused' : ''}`}
                         >
                             <div className="poster-container">
@@ -358,9 +375,31 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
                                         e.currentTarget.src = FALLBACK_POSTER;
                                     }}
                                 />
+                                {movie.season_badge && (
+                                    <span className="season-badge">
+                                        {movie.season_badge}
+                                    </span>
+                                )}
                                 <span className={`quality-badge quality-badge--${quality.type}`}>
                                     {quality.label}
                                 </span>
+                                {movieLangs.length > 0 && (
+                                    <div className="card-langs-badges">
+                                        {movieLangs.slice(0, 3).map((l) => (
+                                            <span key={l} className="card-lang-badge">{l}</span>
+                                        ))}
+                                        {movieLangs.length > 3 && (
+                                            <span className="card-lang-badge card-lang-badge--more">
+                                                +{movieLangs.length - 3}
+                                            </span>
+                                        )}
+                                        {isTmdbFallback && (
+                                            <span className="card-lang-badge card-lang-badge--more">
+                                                +1
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <div className="card-info">
                                 <h3 className="card-name">{movie.title || movie.name}</h3>

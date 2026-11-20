@@ -32,7 +32,7 @@
   }
 
   /* Home */
-  .movie-card--tv-focused { outline: 3px solid var(--accent-yellow) !important; outline-offset: 4px; transform: translateY(-10px) scale(1.04) !important; box-shadow: 0 16px 40px rgba(253, 216, 53, 0.35), 0 0 0 3px var(--accent-yellow) !important; z-index: 20; position: relative; transition: transform 0.15s ease, box-shadow 0.15s ease; }
+  .movie-card--tv-focused { outline: none !important; transform: translateY(-8px) scale(1.03) !important; box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7) !important; z-index: 20; position: relative; transition: transform 0.15s ease, box-shadow 0.15s ease; }
   .movie-card--tv-focused .movie-poster { transform: scale(1.05); }
   .btn-load-more--tv-focused { outline: 3px solid var(--accent-yellow) !important; outline-offset: 4px; transform: translateY(-3px) scale(1.06) !important; box-shadow: 0 10px 30px rgba(253, 216, 53, 0.4), 0 0 0 3px var(--accent-yellow) !important; background: var(--accent-yellow) !important; color: #000 !important; transition: transform 0.15s ease, box-shadow 0.15s ease; }
 

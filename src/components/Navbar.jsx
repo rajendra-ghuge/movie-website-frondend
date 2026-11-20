@@ -118,6 +118,42 @@ const Navbar = () => {
 
     const navLinkRefs = useRef([]);
     const searchIconRef = useRef(null);
+    const closeTimeoutRef = useRef(null);
+
+    const handleDropdownMouseEnter = (name) => {
+        if (closeTimeoutRef.current) {
+            clearTimeout(closeTimeoutRef.current);
+            closeTimeoutRef.current = null;
+        }
+        setActiveDropdown(name);
+    };
+
+    const handleDropdownMouseLeave = () => {
+        if (closeTimeoutRef.current) {
+            clearTimeout(closeTimeoutRef.current);
+        }
+        closeTimeoutRef.current = setTimeout(() => {
+            setActiveDropdown(null);
+        }, 250);
+    };
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (!e.target.closest('.nav-item-container')) {
+                if (closeTimeoutRef.current) {
+                    clearTimeout(closeTimeoutRef.current);
+                }
+                setActiveDropdown(null);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            if (closeTimeoutRef.current) {
+                clearTimeout(closeTimeoutRef.current);
+            }
+        };
+    }, []);
 
     const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
     const currentCat = query.get('cat') || 'home';
@@ -530,8 +566,8 @@ const Navbar = () => {
                             <div
                                 key={link.name}
                                 className="nav-item-container"
-                                onMouseEnter={() => link.dropdown && setActiveDropdown(link.name)}
-                                onMouseLeave={() => setActiveDropdown(null)}
+                                onMouseEnter={() => link.dropdown && handleDropdownMouseEnter(link.name)}
+                                onMouseLeave={handleDropdownMouseLeave}
                             >
                                 <Link
                                     ref={el => { navLinkRefs.current[idx] = el; }}
@@ -540,6 +576,7 @@ const Navbar = () => {
                                     onClick={(e) => {
                                         if (link.dropdown) {
                                             e.preventDefault();
+                                            if (closeTimeoutRef.current) clearTimeout(closeTimeoutRef.current);
                                             setActiveDropdown(isOpen ? null : link.name);
                                         }
                                     }}
