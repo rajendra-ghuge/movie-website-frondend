@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback, memo } from 'react';
 import { useSearchParams, useNavigate, Navigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Search, X, Tv, Radio, Sparkles, Filter, ChevronRight, Globe, AlertCircle, Star } from 'lucide-react';
@@ -7,6 +7,90 @@ import { movieApi, DEFAULT_CONFIG } from '../api';
 import LivePlayer, { isRemoteConfirmKey } from '../components/LivePlayer';
 import Navbar from '../components/Navbar';
 import '../styles/liveTv.css';
+
+// ── Memoized Channel Item to prevent 300+ items re-rendering on channel switch or scroll ──
+const ChannelListItem = memo(({
+  channel,
+  idx,
+  isActive,
+  isFocused,
+  onSelectAndPlay,
+  onSetFocusedIdx,
+  onItemRef
+}) => {
+  return (
+    <button
+      ref={(el) => onItemRef(idx, el)}
+      type="button"
+      className={`livetv-channel-item ${isActive ? 'active' : ''} ${isFocused ? 'livetv-channel-item--tv-focused' : ''}`}
+      onClick={() => {
+        onSelectAndPlay(channel.id, false);
+        onSetFocusedIdx(idx);
+      }}
+      onDoubleClick={() => {
+        onSelectAndPlay(channel.id, true);
+      }}
+      onKeyDown={(e) => {
+        if (isRemoteConfirmKey(e)) {
+          e.preventDefault();
+          e.stopPropagation();
+          onSelectAndPlay(channel.id, true);
+          onSetFocusedIdx(idx);
+        }
+      }}
+    >
+      <div className="livetv-item-logo-box">
+        {channel.logo ? (
+          <img
+            src={channel.logo}
+            alt=""
+            loading="lazy"
+            decoding="async"
+            className="livetv-item-logo"
+            onError={(e) => {
+              e.target.style.display = 'none';
+              if (e.target.nextSibling) {
+                e.target.nextSibling.style.display = 'block';
+              }
+            }}
+          />
+        ) : null}
+        <Tv
+          size={18}
+          className="livetv-item-fallback-icon"
+          style={{ display: channel.logo ? 'none' : 'block' }}
+        />
+      </div>
+
+      <div className="livetv-item-info">
+        <div className="livetv-item-title-row">
+          <span className="livetv-item-name">{channel.name}</span>
+          {channel.isFavorite && (
+            <Star
+              size={13}
+              fill="#fdd835"
+              color="#fdd835"
+              className="livetv-maker-star"
+              title="Maker Favorite Channel"
+            />
+          )}
+        </div>
+        <div className="livetv-item-meta">
+          <span>{channel.category}</span>
+          {channel.quality && <span>• {channel.quality}</span>}
+        </div>
+      </div>
+
+      {isActive && (
+        <div className="livetv-item-playing-indicator" title="Currently Playing">
+          <span className="livetv-item-playing-bar" />
+          <span className="livetv-item-playing-bar" />
+          <span className="livetv-item-playing-bar" />
+        </div>
+      )}
+    </button>
+  );
+});
 
 export default function LiveTVPage() {
   const navigate = useNavigate();
@@ -34,6 +118,10 @@ export default function LiveTVPage() {
   const channelItemRefs = useRef([]);
   const channelListContainerRef = useRef(null);
   const playerRef = useRef(null);
+
+  const handleChannelItemRef = useCallback((idx, el) => {
+    channelItemRefs.current[idx] = el;
+  }, []);
 
   const handleSelectAndPlayChannel = useCallback((channelId, openFullscreen = true) => {
     setCurrentChannelId(channelId);
@@ -354,80 +442,18 @@ export default function LiveTVPage() {
             )}
 
             {!isLoadingChannels &&
-              filteredChannels.map((channel, idx) => {
-                const isActive = activeChannel?.id === channel.id;
-                const isFocused = focusedChannelIdx === idx;
-
-                return (
-                  <button
-                    key={channel.id}
-                    ref={(el) => { channelItemRefs.current[idx] = el; }}
-                    type="button"
-                    className={`livetv-channel-item ${isActive ? 'active' : ''} ${isFocused ? 'livetv-channel-item--tv-focused' : ''}`}
-                    onClick={() => {
-                      handleSelectAndPlayChannel(channel.id, false);
-                      setFocusedChannelIdx(idx);
-                    }}
-                    onDoubleClick={() => {
-                      handleSelectAndPlayChannel(channel.id, true);
-                    }}
-                    onKeyDown={(e) => {
-                      if (isRemoteConfirmKey(e)) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleSelectAndPlayChannel(channel.id, true);
-                        setFocusedChannelIdx(idx);
-                      }
-                    }}
-                  >
-                    <div className="livetv-item-logo-box">
-                      {channel.logo ? (
-                        <img
-                          src={channel.logo}
-                          alt=""
-                          className="livetv-item-logo"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextSibling.style.display = 'block';
-                          }}
-                        />
-                      ) : null}
-                      <Tv
-                        size={18}
-                        className="livetv-item-fallback-icon"
-                        style={{ display: channel.logo ? 'none' : 'block' }}
-                      />
-                    </div>
-
-                    <div className="livetv-item-info">
-                      <div className="livetv-item-title-row">
-                        <span className="livetv-item-name">{channel.name}</span>
-                        {channel.isFavorite && (
-                          <Star
-                            size={13}
-                            fill="#fdd835"
-                            color="#fdd835"
-                            className="livetv-maker-star"
-                            title="Maker Favorite Channel"
-                          />
-                        )}
-                      </div>
-                      <div className="livetv-item-meta">
-                        <span>{channel.category}</span>
-                        {channel.quality && <span>• {channel.quality}</span>}
-                      </div>
-                    </div>
-
-                    {isActive && (
-                      <div className="livetv-item-playing-indicator" title="Currently Playing">
-                        <span className="livetv-item-playing-bar" />
-                        <span className="livetv-item-playing-bar" />
-                        <span className="livetv-item-playing-bar" />
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
+              filteredChannels.map((channel, idx) => (
+                <ChannelListItem
+                  key={channel.id}
+                  channel={channel}
+                  idx={idx}
+                  isActive={activeChannel?.id === channel.id}
+                  isFocused={focusedChannelIdx === idx}
+                  onSelectAndPlay={handleSelectAndPlayChannel}
+                  onSetFocusedIdx={setFocusedChannelIdx}
+                  onItemRef={handleChannelItemRef}
+                />
+              ))}
           </div>
         </div>
       </div>
