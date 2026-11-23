@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
@@ -13,11 +13,123 @@ import { getMovieQuality } from '../utils/quality';
 // Fallback SVG poster for missing/broken poster images
 const FALLBACK_POSTER = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='500' height='750' fill='%23141416'%3E%3Crect width='500' height='750'/%3E%3Cpath d='M250 310a40 40 0 1 0 0 80 40 40 0 0 0 0-80zm-70 120c0-35 30-60 70-60s70 25 70 60v20H180v-20z' fill='%232a2a30'/%3E%3Ctext x='50%25' y='65%25' fill='%23666' font-family='sans-serif' font-size='22' font-weight='600' text-anchor='middle'%3ENo Poster%3C/text%3E%3C/svg%3E";
 
+// Fast O(1) cached date formatter to prevent expensive Intl re-initialization during mobile scroll
+const dateFormatter = new Intl.DateTimeFormat('en-US', {
+    year: 'numeric', month: 'short', day: '2-digit'
+});
+const dateCache = new Map();
+const formatDate = (dateStr) => {
+    if (!dateStr) return 'Coming Soon';
+    let cached = dateCache.get(dateStr);
+    if (cached) return cached;
+    try {
+        const time = Date.parse(dateStr);
+        cached = isNaN(time) ? 'Coming Soon' : dateFormatter.format(time);
+    } catch {
+        cached = 'Coming Soon';
+    }
+    dateCache.set(dateStr, cached);
+    return cached;
+};
+
 const isTVSize = () => {
     if (typeof window === 'undefined') return false;
     const isTVUA = /TV|LargeScreen|AndroidTV|SmartTV/i.test(navigator.userAgent);
     return window.innerWidth >= 1024 || isTVUA;
 };
+
+// ── Memoized Movie Card Item to prevent re-rendering entire grid on scroll/fetch ──
+const MovieCardItem = memo(({
+    movie,
+    idx,
+    type,
+    isFocused,
+    isTV,
+    isOttContext,
+    isTheatricalContext,
+    recentOttData,
+    onClick,
+    onMouseDown,
+    onCardRef
+}) => {
+    const releaseDate = movie.release_date || movie.first_air_date || '';
+    const formattedDate = formatDate(releaseDate);
+    const mediaType = type || movie.media_type || (movie.title ? 'movie' : 'tv');
+    const hasPlayforuLangs = Boolean(movie.langs && movie.langs.length > 0);
+    const isFromPlayforu = Boolean(
+        movie.is_playforu ||
+        movie.from_playforu ||
+        hasPlayforuLangs ||
+        movie.season_badge
+    );
+    let quality = getMovieQuality(movie, {
+        isOtt: isOttContext,
+        isTheatrical: isTheatricalContext,
+        ottMovieIds: recentOttData,
+        isPlayforu: isFromPlayforu
+    });
+    // For PlayForU data, always replace CAM with HD
+    if (isFromPlayforu && (quality.type === 'cam' || quality.label === 'CAM')) {
+        quality = { label: 'HD', type: 'hd' };
+    }
+    const movieLangs = hasPlayforuLangs
+        ? movie.langs
+        : (movie.original_language ? [movie.original_language.toUpperCase()] : []);
+    const isTmdbFallback = !hasPlayforuLangs && movieLangs.length > 0;
+
+    return (
+        <div
+            ref={el => onCardRef(idx, el)}
+            tabIndex={isTV ? -1 : undefined}
+            onClick={() => onClick(movie)}
+            onMouseDown={onMouseDown}
+            className={`movie-card ${isFocused && isTV ? 'movie-card--tv-focused' : ''}`}
+        >
+            <div className="poster-container">
+                <img
+                    src={movieApi.getImageUrl(movie.poster_path, 'w342')}
+                    alt={movie.title || movie.name}
+                    className="movie-poster"
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => {
+                        e.currentTarget.onerror = null;
+                        e.currentTarget.src = FALLBACK_POSTER;
+                    }}
+                />
+                {movie.season_badge && (
+                    <span className="season-badge">
+                        {movie.season_badge}
+                    </span>
+                )}
+                <span className={`quality-badge quality-badge--${quality.type}`}>
+                    {quality.label}
+                </span>
+                {movieLangs.length > 0 && (
+                    <div className="card-langs-badges">
+                        {movieLangs.slice(0, 3).map((l) => (
+                            <span key={l} className="card-lang-badge">{l}</span>
+                        ))}
+                        {movieLangs.length > 3 && (
+                            <span className="card-lang-badge card-lang-badge--more">
+                                +{movieLangs.length - 3}
+                            </span>
+                        )}
+                        {isTmdbFallback && (
+                            <span className="card-lang-badge card-lang-badge--more">
+                                +1
+                            </span>
+                        )}
+                    </div>
+                )}
+            </div>
+            <div className="card-info">
+                <h3 className="card-name">{movie.title || movie.name}</h3>
+                <p className="card-meta">{formattedDate}</p>
+            </div>
+        </div>
+    );
+});
 
 // Get the rendered top-offset of a card element (used for row detection)
 // We round to avoid sub-pixel differences between cards in the same row.
@@ -53,7 +165,7 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
         queryKey: ['recent-ott-ids'],
         queryFn: async () => {
             try {
-                const pages = await Promise.all([1, 2, 3, 4, 5].map(page =>
+                const pages = await Promise.all([1, 2].map(page =>
                     movieApi.discoverMovies({
                         watch_region: 'IN',
                         with_watch_providers: '8|119|2336|232|237',
@@ -125,7 +237,7 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
     useEffect(() => {
         if (!hasNextPage || isFetchingNextPage || isLoading || movies.length === 0) return;
 
-        const triggerIdx = Math.max(movies.length - 2, 0);
+        const triggerIdx = Math.max(movies.length - 1, 0);
         const triggerCard = cardRefs.current[triggerIdx];
         if (!triggerCard) return;
 
@@ -135,12 +247,16 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
                     fetchNextPage();
                 }
             },
-            { root: null, rootMargin: '400px', threshold: 0.1 }
+            { root: null, rootMargin: '160px', threshold: 0.05 }
         );
 
         observer.observe(triggerCard);
         return () => observer.disconnect();
     }, [fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, locationSearch, movies.length]);
+
+    const handleCardRef = useCallback((idx, el) => {
+        cardRefs.current[idx] = el;
+    }, []);
 
     const handleMovieClick = useCallback((movie) => {
         setFocusedCardIdx(-1);
@@ -323,92 +439,22 @@ const MovieGrid = ({ fetchUrl, searchQuery, type, locationSearch }) => {
             {focusAnchor}
 
             <div className="movie-grid">
-                {movies.map((movie, idx) => {
-                    const releaseDate = movie.release_date || movie.first_air_date || '';
-                    const formattedDate = releaseDate
-                        ? new Date(releaseDate).toLocaleDateString('en-US', {
-                            year: 'numeric', month: 'short', day: '2-digit'
-                        })
-                        : 'Coming Soon';
-
-                    const mediaType = type || movie.media_type || (movie.title ? 'movie' : 'tv');
-                    const isFocused = focusedCardIdx === idx;
-                    const hasPlayforuLangs = Boolean(movie.langs && movie.langs.length > 0);
-                    const isFromPlayforu = Boolean(
-                        movie.is_playforu ||
-                        movie.from_playforu ||
-                        hasPlayforuLangs ||
-                        movie.season_badge
-                    );
-                    let quality = getMovieQuality(movie, {
-                        isOtt: isOttContext,
-                        isTheatrical: isTheatricalContext,
-                        ottMovieIds: recentOttData,
-                        isPlayforu: isFromPlayforu
-                    });
-                    // For PlayForU data, always replace CAM with HD
-                    if (isFromPlayforu && (quality.type === 'cam' || quality.label === 'CAM')) {
-                        quality = { label: 'HD', type: 'hd' };
-                    }
-                    const movieLangs = hasPlayforuLangs
-                        ? movie.langs
-                        : (movie.original_language ? [movie.original_language.toUpperCase()] : []);
-                    const isTmdbFallback = !hasPlayforuLangs && movieLangs.length > 0;
-
-                    return (
-                        <div
-                            key={`${mediaType}-${movie.id}`}
-                            ref={el => { cardRefs.current[idx] = el; }}
-                            tabIndex={isTVSize() ? -1 : undefined}
-                            onClick={() => handleMovieClick(movie)}
-                            onMouseDown={() => setFocusedCardIdx(-1)}
-                            className={`movie-card ${isFocused && isTVSize() ? 'movie-card--tv-focused' : ''}`}
-                        >
-                            <div className="poster-container">
-                                <img
-                                    src={movieApi.getImageUrl(movie.poster_path, 'w342')}
-                                    alt={movie.title || movie.name}
-                                    className="movie-poster"
-                                    loading="lazy"
-                                    decoding="async"
-                                    onError={(e) => {
-                                        e.currentTarget.onerror = null;
-                                        e.currentTarget.src = FALLBACK_POSTER;
-                                    }}
-                                />
-                                {movie.season_badge && (
-                                    <span className="season-badge">
-                                        {movie.season_badge}
-                                    </span>
-                                )}
-                                <span className={`quality-badge quality-badge--${quality.type}`}>
-                                    {quality.label}
-                                </span>
-                                {movieLangs.length > 0 && (
-                                    <div className="card-langs-badges">
-                                        {movieLangs.slice(0, 3).map((l) => (
-                                            <span key={l} className="card-lang-badge">{l}</span>
-                                        ))}
-                                        {movieLangs.length > 3 && (
-                                            <span className="card-lang-badge card-lang-badge--more">
-                                                +{movieLangs.length - 3}
-                                            </span>
-                                        )}
-                                        {isTmdbFallback && (
-                                            <span className="card-lang-badge card-lang-badge--more">
-                                                +1
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="card-info">
-                                <h3 className="card-name">{movie.title || movie.name}</h3>
-                                <p className="card-meta">{formattedDate}</p>
-                            </div>
-                        </div>
-                    );
-                })}
+                {movies.map((movie, idx) => (
+                    <MovieCardItem
+                        key={`${type || movie.media_type || (movie.title ? 'movie' : 'tv')}-${movie.id}`}
+                        movie={movie}
+                        idx={idx}
+                        type={type}
+                        isFocused={focusedCardIdx === idx}
+                        isTV={isTVSize()}
+                        isOttContext={isOttContext}
+                        isTheatricalContext={isTheatricalContext}
+                        recentOttData={recentOttData}
+                        onClick={handleMovieClick}
+                        onMouseDown={() => setFocusedCardIdx(-1)}
+                        onCardRef={handleCardRef}
+                    />
+                ))}
             </div>
 
             {isFetchingNextPage && (

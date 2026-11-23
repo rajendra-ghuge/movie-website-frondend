@@ -24,10 +24,11 @@ export const getMovieQuality = (movie, context = {}) => {
         return { label: 'HD', type: 'hd' };
     }
 
-    const releaseDate = new Date(releaseDateStr);
-    const now = new Date();
-    const diffTime = now - releaseDate;
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const releaseTime = Date.parse(releaseDateStr);
+    if (isNaN(releaseTime)) {
+        return { label: 'HD', type: 'hd' };
+    }
+    const diffDays = Math.floor((Date.now() - releaseTime) / 86400000);
 
     // Future releases
     if (diffDays < 0) {

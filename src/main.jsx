@@ -10,7 +10,6 @@ import './styles/watch.css'
 import './styles/downloads.css'
 import './styles/mobile.css'
 import './styles/tv-dpad.css'
-import './styles/chatbot.css'
 import App from './App.jsx'
 
 // Disable TV Browser default spatial navigation & handle digit navigation

@@ -1,8 +1,9 @@
 .movie-grid {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 1.5rem;
   max-width: 100%;
+  width: 100%;
 }
 
 .movie-card {
@@ -16,6 +17,7 @@
   box-shadow: none;
   border: none;
   height: 100%;
+  min-width: 0;
 }
 
 .poster-container {

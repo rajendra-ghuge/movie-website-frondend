@@ -3,7 +3,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useEffect, lazy, Suspense, useRef } from 'react';
 import useTVNavigation from './hooks/useTVNavigation';
 import api from './api';
-import MovieChatbot from './components/MovieChatbot';
 
 const HomePage = lazy(() => import('./pages/HomePage'));
 const MovieDetailPage = lazy(() => import('./pages/MovieDetailPage'));
@@ -109,15 +108,31 @@ function App() {
     }
 
     // Background Route Preloading
-    // Waits 2 seconds so the initial boot is instant, then silently downloads
-    // the JS and CSS for the other pages so they load instantly when clicked.
-    const preloadTimer = setTimeout(() => {
+    // Waits until the browser is idle (or after 5s) so it never
+    // competes with initial scrolling or user interactions on mobile.
+    const preloadRoutes = () => {
       import('./pages/MovieDetailPage');
       import('./pages/WatchPage');
       import('./pages/DownloadDetailsPage');
-    }, 2000);
+    };
 
-    return () => clearTimeout(preloadTimer);
+    let idleId = null;
+    let timerId = null;
+
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      idleId = window.requestIdleCallback(() => {
+        timerId = setTimeout(preloadRoutes, 3000);
+      }, { timeout: 8000 });
+    } else {
+      timerId = setTimeout(preloadRoutes, 5000);
+    }
+
+    return () => {
+      if (idleId && typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        window.cancelIdleCallback(idleId);
+      }
+      if (timerId) clearTimeout(timerId);
+    };
   }, []);
 
   return (
@@ -136,7 +151,6 @@ function App() {
             <Route path="/serials/channel/:channelSlug" element={<ChannelPage />} />
           </Routes>
         </Suspense>
-        <MovieChatbot />
       </BrowserRouter>
     </QueryClientProvider>
   );
