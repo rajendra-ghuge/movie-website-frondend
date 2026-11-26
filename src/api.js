@@ -190,6 +190,8 @@ export const movieApi = {
     getTvSeason: (id, season, params = {}) => api.get(`/tv/${id}/season/${season}`, { params }),
     getStreamData: (type, id, season = null, episode = null, source = 'auto') =>
         api.get(`/stream/${type}/${id}`, { params: { season, episode, source } }),
+    getDownloads: (type, id, season = 1, episode = 1, pack = false) =>
+        api.get(`/downloads/${type}/${id}`, { params: { season, episode, pack } }).then(res => res.data),
     searchAoneroom: (keyword, params = {}) => axios.get(`${getApiRootUrl()}/aoneroom/search`, { params: { keyword, ...params } }),
     getAoneroomDetail: (detailPath) => axios.get(`${getApiRootUrl()}/aoneroom/detail`, { params: { detailPath } }),
     getAoneroomDownload: ({ subjectId, detailPath, se = 0, ep = 0 }) => axios.get(`${getApiRootUrl()}/aoneroom/download`, { params: { subjectId, detailPath, se, ep } }),

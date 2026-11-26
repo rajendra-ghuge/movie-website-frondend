@@ -5,6 +5,7 @@ import { Loader2, Play, ChevronLeft, ChevronRight, Server, ChevronDown, Download
 import { movieApi, serialsApi, DEFAULT_CONFIG } from '../api';
 import Navbar from '../components/Navbar';
 import Disclaimer from '../components/Disclaimer';
+import DownloadModal from '../components/DownloadModal';
 
 const FALLBACK_DEFAULT_SERVER = 1;
 
@@ -813,16 +814,6 @@ const WatchPage = () => {
     // Compute once per render — avoids calling window.innerWidth + UA check ~25 times in JSX loops.
     const tvMode = isTVSize();
     const isApk = typeof window !== 'undefined' && !!window.AndroidApp;
-    const fallbackDownloadTemplate = type === 'tv'
-        ? 'https://web.nxsha.app/dl/tv/{id}/{s}/{e}'
-        : 'https://nxsha.space/dl/movie/{id}';
-    const downloadTemplate = serverConfig?.download?.[type] || fallbackDownloadTemplate;
-    const downloadUrl = downloadTemplate
-        .replaceAll('{id}', id)
-        .replaceAll('{s}', selectedSeason ?? '')
-        .replaceAll('{season}', selectedSeason ?? '')
-        .replaceAll('{e}', selectedEpisode ?? '')
-        .replaceAll('{episode}', selectedEpisode ?? '');
 
     return (
         <div className="page-wrapper" onKeyDown={handlePageKeyDown}>
@@ -1140,33 +1131,17 @@ const WatchPage = () => {
             <footer className="footer" style={{ marginTop: '4rem', marginBottom: '2rem', opacity: 0.5, fontSize: '0.8rem', textAlign: 'center' }}>
                 <p>&copy; 2026 4KHDHUB India &bull; All Rights Reserved &bull; <Disclaimer /></p>
             </footer>
-            {isDownloadOpen && (
-                <div className="download-frame-overlay" role="dialog" aria-modal="true" aria-label={`Download ${title}`}>
-                    <header className="download-frame-header">
-                        <h2>
-                            {title}
-                            {type === 'tv' && ` — S${selectedSeason} E${selectedEpisode}`}
-                        </h2>
-                        <button
-                            ref={downloadCloseBtnRef}
-                            type="button"
-                            className="download-frame-close"
-                            onClick={() => setIsDownloadOpen(false)}
-                            aria-label="Close download"
-                        >
-                            <X size={24} aria-hidden="true" />
-                        </button>
-                    </header>
-                    <div className="download-frame-viewport">
-                        <iframe
-                            className="download-frame"
-                            src={downloadUrl}
-                            title={`Download ${title}`}
-                            allow="clipboard-read; clipboard-write"
-                        />
-                    </div>
-                </div>
-            )}
+            <DownloadModal
+                isOpen={isDownloadOpen}
+                onClose={() => setIsDownloadOpen(false)}
+                type={type}
+                id={id}
+                title={title}
+                season={selectedSeason || 1}
+                episode={selectedEpisode || 1}
+                seasons={detail?.seasons}
+                totalEpisodes={seasonData?.episodes?.length || detail?.seasons?.find(s => s.season_number === (selectedSeason || 1))?.episode_count || null}
+            />
         </div>
     );
 };

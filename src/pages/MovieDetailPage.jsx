@@ -6,6 +6,7 @@ import { movieApi } from '../api';
 import Navbar from '../components/Navbar';
 import Disclaimer from '../components/Disclaimer';
 import { DetailShimmer } from '../components/Shimmer';
+import DownloadModal from '../components/DownloadModal';
 
 const isTV = () => {
     if (typeof window === 'undefined') return false;
@@ -19,6 +20,7 @@ const MovieDetailPage = () => {
     // TV navigation state
     const [activeSection, setActiveSection] = useState(null);
     const [isPosterLoaded, setIsPosterLoaded] = useState(false);
+    const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
     const [castFocusIdx, setCastFocusIdx] = useState(0);
     const [genreFocusIdx, setGenreFocusIdx] = useState(0);
     const [kwFocusIdx, setKwFocusIdx] = useState(0);
@@ -253,7 +255,7 @@ const MovieDetailPage = () => {
             if (key === 'ArrowUp') { e.preventDefault(); navigateUpFromTrailer(); }
             else if (key === 'Enter') { e.preventDefault(); setIsInteractingWithTrailer(true); }
         }
-    }, [activeSection, castFocusIdx, genreFocusIdx, kwFocusIdx, isInteractingWithTrailer, focusSection, focusNavbar, handleBackAction, navigateUpFromTrailer, navigate, type, id]);
+    }, [activeSection, castFocusIdx, genreFocusIdx, kwFocusIdx, isInteractingWithTrailer, focusSection, focusNavbar, handleBackAction, navigateUpFromTrailer, navigate, type, id, watchUrl]);
 
     if (isLoading) return (
         <div className="page-wrapper">
@@ -286,13 +288,10 @@ const MovieDetailPage = () => {
 
     const trailer = movie.videos?.results?.find(v => v.type === 'Trailer') || movie.videos?.results?.[0];
     const title = movie.title || movie.name;
-    const releaseYear = (movie.release_date || movie.first_air_date || '').slice(0, 4);
     const castList = movie.credits?.cast?.slice(0, 8) || [];
     const genreList = (movie.genres?.length ? movie.genres : (genresData?.genres || []).filter(genre => movie.genre_ids?.includes(genre.id))).slice(0, 12);
     const keywordsList = (type === 'movie' ? keywordsData?.keywords : keywordsData?.results)?.slice(0, 15) || [];
     const tvMode = isTV();
-    const isApk = typeof window !== 'undefined' && !!window.AndroidApp;
-    const showDownloads = isApk && !tvMode;
 
     return (
         <div className="page-wrapper" onKeyDown={handlePageKeyDown}>
@@ -316,9 +315,13 @@ const MovieDetailPage = () => {
                     <h1 className="detail-title-large">{title}</h1>
                     <div className="detail-actions">
                         <Link ref={watchBtnRef} to={watchUrl} tabIndex={-1} onFocus={() => tvMode && setActiveSection('watch')} className={`btn-watch${activeSection === 'watch' ? ' btn-watch--tv-focused' : ''}`}><Play size={20} fill="currentColor" /> Watch Now</Link>
-                        {showDownloads && (
-                            <Link to={`/downloads?s=${encodeURIComponent(title)}&type=${encodeURIComponent(type)}${releaseYear ? `&year=${encodeURIComponent(releaseYear)}` : ''}&id=${id}`} className="btn-download-detail"><Download size={20} /> Download</Link>
-                        )}
+                        <button
+                            type="button"
+                            onClick={() => setIsDownloadModalOpen(true)}
+                            className="btn-download-detail"
+                        >
+                            <Download size={20} /> Download
+                        </button>
                     </div>
                     <p className="detail-overview">{movie.overview}</p>
                     <div className="meta-info">
@@ -369,6 +372,17 @@ const MovieDetailPage = () => {
             <footer className="footer" style={{ marginTop: '4rem', marginBottom: '2rem', opacity: 0.5, fontSize: '0.8rem', textAlign: 'center' }}>
                 <p>&copy; 2026 4KHDHUB India &bull; All Rights Reserved &bull; <Disclaimer /></p>
             </footer>
+            <DownloadModal
+                isOpen={isDownloadModalOpen}
+                onClose={() => setIsDownloadModalOpen(false)}
+                type={type}
+                id={id}
+                title={title}
+                season={targetSeason || 1}
+                episode={1}
+                seasons={movie?.seasons}
+                totalEpisodes={movie?.seasons?.find(s => s.season_number === targetSeason)?.episode_count}
+            />
         </div>
     );
 };

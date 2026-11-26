@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X, ChevronDown, Menu, Tv, Smartphone, Download } from 'lucide-react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
@@ -116,6 +117,18 @@ const Navbar = () => {
     const [mobileExpanded, setMobileExpanded] = useState(null);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [focusedNavIdx, setFocusedNavIdx] = useState(-1);
+
+    // Lock body scroll when mobile menu is open
+    useEffect(() => {
+        if (isMenuOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => {
+            document.body.style.overflow = '';
+        };
+    }, [isMenuOpen]);
 
     const navLinkRefs = useRef([]);
     const searchIconRef = useRef(null);
@@ -656,9 +669,9 @@ const Navbar = () => {
             </div>
 
             {/* ══════════════════════════════════════════
-                MOBILE SIDE MENU
+                MOBILE SIDE MENU (Portaled to document.body)
             ══════════════════════════════════════════ */}
-            {isMenuOpen && (
+            {isMenuOpen && typeof document !== 'undefined' && createPortal(
                 <div className="mobile-menu-overlay" onClick={() => { setIsMenuOpen(false); setMobileExpanded(null); }}>
                     <div className="mobile-menu" onClick={(e) => e.stopPropagation()}>
                         <div className="mobile-menu-header">
@@ -743,7 +756,8 @@ const Navbar = () => {
                             ))}
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </nav>
     );
